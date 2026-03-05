@@ -85,16 +85,20 @@ async def ingest_round(session: AsyncSession, raw: RawRound, source_type: str) -
     session.add(round_record)
     await session.flush()
 
-    # Link investors
+    # Deduplicate investors: if someone is in both lead and other, lead wins
+    seen_slugs: set[str] = set()
+
     for inv_name in raw.lead_investors:
         investor = await get_or_create_investor(session, inv_name)
-        session.add(RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=True))
+        if investor.slug not in seen_slugs:
+            seen_slugs.add(investor.slug)
+            session.add(RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=True))
 
     for inv_name in raw.other_investors:
         investor = await get_or_create_investor(session, inv_name)
-        session.add(
-            RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=False)
-        )
+        if investor.slug not in seen_slugs:
+            seen_slugs.add(investor.slug)
+            session.add(RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=False))
 
     return True
 
@@ -114,9 +118,11 @@ async def run_collector(session: AsyncSession, collector: BaseCollector) -> Coll
 
         for raw in raw_rounds:
             try:
-                is_new = await ingest_round(session, raw, collector.source_type())
-                if is_new:
-                    new_count += 1
+                # Use savepoint so one failed round doesn't kill the batch
+                async with session.begin_nested():
+                    is_new = await ingest_round(session, raw, collector.source_type())
+                    if is_new:
+                        new_count += 1
             except Exception as e:
                 flagged_count += 1
                 logger.warning(f"Failed to ingest round {raw.project_name}: {e}")
