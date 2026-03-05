@@ -3,12 +3,15 @@
 import uuid
 from datetime import date
 
+import redis.asyncio as redis
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.api.deps import get_db
+from src.api.cache import cache_key, get_cached, set_cached
+from src.api.deps import get_db, get_redis
 from src.api.schemas import PaginationMeta, RoundListResponse, RoundOut
 from src.config import settings
 from src.models import Investor, Round, RoundInvestor
@@ -19,6 +22,7 @@ router = APIRouter(prefix="/rounds", tags=["rounds"])
 @router.get("", response_model=RoundListResponse)
 async def list_rounds(
     db: AsyncSession = Depends(get_db),
+    r: redis.Redis = Depends(get_redis),
     limit: int = Query(default=settings.default_page_limit, le=settings.max_page_limit, ge=1),
     offset: int = Query(default=0, ge=0),
     sector: str | None = Query(default=None),
@@ -31,6 +35,18 @@ async def list_rounds(
     min_confidence: float = Query(default=settings.min_confidence, ge=0.0, le=1.0),
     investor_slug: str | None = Query(default=None),
 ):
+    params = {
+        "limit": limit, "offset": offset, "sector": sector, "chain": chain,
+        "round_type": round_type, "min_amount": min_amount, "max_amount": max_amount,
+        "date_from": date_from, "date_to": date_to, "min_confidence": min_confidence,
+        "investor_slug": investor_slug,
+    }
+    ck = cache_key("rounds", params)
+
+    cached = await get_cached(r, ck)
+    if cached:
+        return Response(content=cached, media_type="application/json")
+
     stmt = select(Round).options(
         selectinload(Round.project),
         selectinload(Round.investor_participations).selectinload(RoundInvestor.investor),
@@ -67,34 +83,36 @@ async def list_rounds(
     total = (await db.execute(count_stmt)).scalar_one()
 
     data = []
-    for r in rounds:
+    for rd in rounds:
         investors = [
             {"id": ri.investor.id, "name": ri.investor.name, "slug": ri.investor.slug, "is_lead": ri.is_lead}
-            for ri in r.investor_participations
+            for ri in rd.investor_participations
         ]
         data.append(
             RoundOut(
-                id=r.id,
-                project=r.project,
-                round_type=r.round_type,
-                amount_usd=r.amount_usd,
-                valuation_usd=r.valuation_usd,
-                date=r.date,
-                chains=r.chains,
-                sector=r.sector,
-                category=r.category,
-                source_url=r.source_url,
-                source_type=r.source_type,
-                confidence=r.confidence,
+                id=rd.id,
+                project=rd.project,
+                round_type=rd.round_type,
+                amount_usd=rd.amount_usd,
+                valuation_usd=rd.valuation_usd,
+                date=rd.date,
+                chains=rd.chains,
+                sector=rd.sector,
+                category=rd.category,
+                source_url=rd.source_url,
+                source_type=rd.source_type,
+                confidence=rd.confidence,
                 investors=investors,
-                created_at=r.created_at,
+                created_at=rd.created_at,
             )
         )
 
-    return RoundListResponse(
+    response = RoundListResponse(
         data=data,
         meta=PaginationMeta(total=total, limit=limit, offset=offset, has_more=offset + limit < total),
     )
+    await set_cached(r, ck, response.model_dump_json())
+    return response
 
 
 @router.get("/{round_id}", response_model=RoundOut)
@@ -111,27 +129,27 @@ async def get_round(
         .where(Round.id == round_id)
     )
     result = await db.execute(stmt)
-    r = result.scalar_one_or_none()
-    if r is None:
+    rd = result.scalar_one_or_none()
+    if rd is None:
         raise HTTPException(status_code=404, detail="Round not found")
 
     investors = [
         {"id": ri.investor.id, "name": ri.investor.name, "slug": ri.investor.slug, "is_lead": ri.is_lead}
-        for ri in r.investor_participations
+        for ri in rd.investor_participations
     ]
     return RoundOut(
-        id=r.id,
-        project=r.project,
-        round_type=r.round_type,
-        amount_usd=r.amount_usd,
-        valuation_usd=r.valuation_usd,
-        date=r.date,
-        chains=r.chains,
-        sector=r.sector,
-        category=r.category,
-        source_url=r.source_url,
-        source_type=r.source_type,
-        confidence=r.confidence,
+        id=rd.id,
+        project=rd.project,
+        round_type=rd.round_type,
+        amount_usd=rd.amount_usd,
+        valuation_usd=rd.valuation_usd,
+        date=rd.date,
+        chains=rd.chains,
+        sector=rd.sector,
+        category=rd.category,
+        source_url=rd.source_url,
+        source_type=rd.source_type,
+        confidence=rd.confidence,
         investors=investors,
-        created_at=r.created_at,
+        created_at=rd.created_at,
     )

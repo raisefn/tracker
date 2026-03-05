@@ -15,15 +15,30 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redisdata:/data
+
   api:
     build: .
     ports:
       - "8000:8000"
     environment:
       RAISEFN_DATABASE_URL: postgresql+asyncpg://tracker:tracker@db:5432/tracker
+      RAISEFN_REDIS_URL: redis://redis:6379/0
       RAISEFN_DEBUG: "false"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./src:/app/src
@@ -32,3 +47,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:
