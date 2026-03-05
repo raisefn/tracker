@@ -1,8 +1,12 @@
+import asyncio
+import logging
 from datetime import date, datetime
 
 import httpx
 
 from src.collectors.base import BaseCollector, RawRound
+
+logger = logging.getLogger(__name__)
 
 DEFILLAMA_RAISES_URL = "https://api.llama.fi/raises"
 
@@ -38,8 +42,17 @@ class DefiLlamaCollector(BaseCollector):
 
     async def collect(self) -> list[RawRound]:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.get(DEFILLAMA_RAISES_URL)
-            resp.raise_for_status()
+            for attempt in range(5):
+                resp = await client.get(DEFILLAMA_RAISES_URL)
+                if resp.status_code == 429:
+                    wait = min(2 ** (attempt + 2), 120)
+                    logger.warning(f"Rate limited, retrying in {wait}s (attempt {attempt + 1}/5)")
+                    await asyncio.sleep(wait)
+                    continue
+                resp.raise_for_status()
+                break
+            else:
+                resp.raise_for_status()
             data = resp.json()
 
         raises = data.get("raises", data) if isinstance(data, dict) else data
