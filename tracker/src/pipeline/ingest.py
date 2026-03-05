@@ -6,7 +6,9 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.cache import invalidate_all
 from src.collectors.base import BaseCollector, RawRound
+from src.db.redis import get_redis_client
 from src.models import CollectorRun, Investor, Project, Round, RoundInvestor
 from src.pipeline.entity_resolver import resolve_investor_name
 from src.pipeline.normalizer import make_slug, normalize_round
@@ -131,6 +133,13 @@ async def run_collector(session: AsyncSession, collector: BaseCollector) -> Coll
         run.rounds_flagged = flagged_count
         run.completed_at = datetime.now()
         await session.commit()
+
+        # Invalidate cached API responses after new data
+        r = get_redis_client()
+        try:
+            await invalidate_all(r)
+        finally:
+            await r.aclose()
 
     except Exception as e:
         run.errors = {"error": str(e)}

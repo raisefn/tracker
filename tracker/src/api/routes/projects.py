@@ -1,10 +1,13 @@
 """Project endpoints."""
 
+import redis.asyncio as redis
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_db
+from src.api.cache import cache_key, get_cached, set_cached
+from src.api.deps import get_db, get_redis
 from src.api.schemas import PaginationMeta, ProjectDetail, ProjectListResponse
 from src.config import settings
 from src.models import Project
@@ -15,6 +18,7 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 @router.get("", response_model=ProjectListResponse)
 async def list_projects(
     db: AsyncSession = Depends(get_db),
+    r: redis.Redis = Depends(get_redis),
     limit: int = Query(default=settings.default_page_limit, le=settings.max_page_limit, ge=1),
     offset: int = Query(default=0, ge=0),
     sector: str | None = Query(default=None),
@@ -22,6 +26,16 @@ async def list_projects(
     status: str | None = Query(default=None),
     search: str | None = Query(default=None, min_length=2),
 ):
+    params = {
+        "limit": limit, "offset": offset, "sector": sector,
+        "chain": chain, "status": status, "search": search,
+    }
+    ck = cache_key("projects", params)
+
+    cached = await get_cached(r, ck)
+    if cached:
+        return Response(content=cached, media_type="application/json")
+
     stmt = select(Project)
     count_stmt = select(func.count(Project.id))
 
@@ -46,10 +60,12 @@ async def list_projects(
 
     total = (await db.execute(count_stmt)).scalar_one()
 
-    return ProjectListResponse(
+    response = ProjectListResponse(
         data=[ProjectDetail.model_validate(proj) for proj in projects],
         meta=PaginationMeta(total=total, limit=limit, offset=offset, has_more=offset + limit < total),
     )
+    await set_cached(r, ck, response.model_dump_json())
+    return response
 
 
 @router.get("/{slug}", response_model=ProjectDetail)

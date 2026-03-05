@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://tracker:tracker@localhost:5432/tracker"
+    redis_url: str = "redis://localhost:6379/0"
     api_prefix: str = "/v1"
     debug: bool = False
     collector_batch_size: int = 500
