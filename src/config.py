@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     default_page_limit: int = 50
     max_page_limit: int = 200
     min_confidence: float = 0.3
+    coingecko_api_key: str = ""
+    github_token: str = ""
 
     model_config = {"env_prefix": "RAISEFN_"}
 
