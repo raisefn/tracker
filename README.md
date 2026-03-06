@@ -9,6 +9,9 @@ Part of [raisefn](https://raisefn.com) — the intelligence layer for crypto cap
 - **Collects** funding round data from public sources (DefiLlama, more coming)
 - **Normalizes** project names, investor entities, sectors, and chain labels
 - **Scores** data quality with a confidence system (0.0–1.0)
+- **Deduplicates** investors across lead/other roles per round
+- **Caches** responses in Redis (5-min TTL, auto-invalidated after data collection)
+- **Authenticates** API access with hashed API keys and tiered rate limiting
 - **Serves** clean data through a paginated, filterable REST API
 
 ## Quick start
@@ -22,6 +25,9 @@ docker compose up -d
 # Run database migrations
 docker compose exec api alembic upgrade head
 
+# Create an API key
+docker compose exec api python -m scripts.manage_keys create yourname free
+
 # Collect data
 docker compose exec api python -m scripts.run_collectors
 
@@ -29,11 +35,44 @@ docker compose exec api python -m scripts.run_collectors
 # Docs at http://localhost:8000/docs
 ```
 
+## Authentication
+
+All endpoints except `/health` require an API key. Pass it via header or query param:
+
+```bash
+# Header (recommended)
+curl -H "X-API-Key: rfn_yourkey" http://localhost:8000/v1/rounds
+
+# Query param
+curl http://localhost:8000/v1/rounds?api_key=rfn_yourkey
+```
+
+### Rate limits
+
+| Tier | Requests/hour |
+|------|---------------|
+| free | 100 |
+| basic | 1,000 |
+| pro | 10,000 |
+
+### Key management
+
+```bash
+# Create a key (prints the key once — save it)
+docker compose exec api python -m scripts.manage_keys create <owner> [tier]
+
+# List keys
+docker compose exec api python -m scripts.manage_keys list
+
+# Revoke a key by prefix
+docker compose exec api python -m scripts.manage_keys revoke <prefix>
+```
+
 ## API endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/health` | System health + counts |
+| `GET` | `/health` | System health + counts (no auth) |
 | `GET` | `/v1/rounds` | List rounds (filterable) |
 | `GET` | `/v1/rounds/:id` | Single round detail |
 | `GET` | `/v1/investors` | List investors |
@@ -49,14 +88,25 @@ GET /v1/rounds?sector=defi&chain=ethereum&min_amount=1000000&date_from=2024-01-0
 
 Query params: `sector`, `chain`, `round_type`, `min_amount`, `max_amount`, `date_from`, `date_to`, `min_confidence`, `investor_slug`, `limit`, `offset`.
 
+## Testing
+
+```bash
+# Run full test suite (66 tests)
+docker compose exec api pytest --tb=short
+
+# Run specific test file
+docker compose exec api pytest tests/api/test_rounds.py
+```
+
 ## Local development (without Docker)
 
 ```bash
-# Requires Python 3.12+ and PostgreSQL 16
+# Requires Python 3.12+, PostgreSQL 16, Redis 7
 pip install -e ".[dev]"
 
-# Set database URL
+# Set env vars
 export RAISEFN_DATABASE_URL=postgresql+asyncpg://tracker:tracker@localhost:5432/tracker
+export RAISEFN_REDIS_URL=redis://localhost:6379/0
 
 # Run migrations
 alembic upgrade head
@@ -68,17 +118,34 @@ uvicorn src.api.app:app --reload
 python -m scripts.run_collectors
 ```
 
+## Deploy
+
+The tracker runs as three services: API (Python), PostgreSQL, and Redis. Deploy to any platform that supports Docker or containers:
+
+- **Railway**: `railway init`, add Postgres + Redis databases, `railway up`
+- **Fly.io**: `fly launch`, add `fly postgres create` + `fly redis create`
+- **Docker host**: Use the included `docker-compose.yml` on any VPS
+
+Set these environment variables in production:
+
+```
+RAISEFN_DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/tracker
+RAISEFN_REDIS_URL=redis://host:6379/0
+RAISEFN_DEBUG=false
+```
+
 ## Architecture
 
 ```
 src/
-├── api/            # FastAPI app, schemas, routes
+├── api/            # FastAPI app, schemas, routes, auth, caching
 ├── collectors/     # Data source plugins (one file per source)
-├── db/             # SQLAlchemy session setup
-├── models/         # ORM models (Project, Investor, Round, etc.)
+├── db/             # SQLAlchemy + Redis connection setup
+├── models/         # ORM models (Project, Investor, Round, ApiKey, etc.)
 ├── pipeline/       # Normalization, validation, entity resolution, ingestion
 scripts/
-└── run_collectors.py
+├── run_collectors.py
+└── manage_keys.py
 ```
 
 ### Adding a new collector

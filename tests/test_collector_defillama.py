@@ -1,7 +1,7 @@
 """Tests for the DefiLlama collector."""
 
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -64,9 +64,9 @@ async def test_collect_parses_raises():
         ]
     }
 
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = mock_data
 
     with patch("src.collectors.defillama.httpx.AsyncClient") as mock_client_cls:
@@ -104,9 +104,9 @@ async def test_collect_skips_malformed():
         ]
     }
 
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = mock_data
 
     with patch("src.collectors.defillama.httpx.AsyncClient") as mock_client_cls:
