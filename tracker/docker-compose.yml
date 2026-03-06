@@ -37,6 +37,7 @@ services:
       RAISEFN_DEBUG: "false"
       RAISEFN_COINGECKO_API_KEY: "${COINGECKO_API_KEY:-}"
       RAISEFN_GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+      RAISEFN_ETHERSCAN_API_KEY: "${ETHERSCAN_API_KEY:-}"
     depends_on:
       db:
         condition: service_healthy

@@ -42,6 +42,16 @@ class ProjectDetail(BaseModel):
     github_stars: int | None = None
     github_commits_30d: int | None = None
     github_contributors: int | None = None
+    snapshot_proposals_count: int | None = None
+    snapshot_voters_count: int | None = None
+    snapshot_proposal_activity_30d: int | None = None
+    reddit_subscribers: int | None = None
+    reddit_active_users: int | None = None
+    hn_mentions_90d: int | None = None
+    hn_total_points: int | None = None
+    twitter_followers: int | None = None
+    telegram_members: int | None = None
+    token_holder_count: int | None = None
     last_enriched_at: datetime | None = None
     created_at: datetime
 

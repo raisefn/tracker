@@ -10,9 +10,14 @@ import asyncio
 import logging
 import sys
 
+from src.collectors.coingecko_community_enricher import CoinGeckoCommunityEnricher
 from src.collectors.coingecko_enricher import CoinGeckoEnricher
 from src.collectors.defillama_enricher import DefiLlamaProtocolEnricher
+from src.collectors.etherscan_enricher import EtherscanEnricher
 from src.collectors.github_enricher import GitHubEnricher
+from src.collectors.hackernews_enricher import HackerNewsEnricher
+from src.collectors.reddit_enricher import RedditEnricher
+from src.collectors.snapshot_enricher import SnapshotEnricher
 from src.db.session import async_session
 from src.pipeline.enrich import run_enricher
 
@@ -23,6 +28,11 @@ ENRICHERS = {
     "defillama_protocols": DefiLlamaProtocolEnricher,
     "coingecko": CoinGeckoEnricher,
     "github": GitHubEnricher,
+    "snapshot": SnapshotEnricher,
+    "reddit": RedditEnricher,
+    "hackernews": HackerNewsEnricher,
+    "coingecko_community": CoinGeckoCommunityEnricher,
+    "etherscan": EtherscanEnricher,
 }
 
 
