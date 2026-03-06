@@ -34,6 +34,15 @@ class ProjectDetail(BaseModel):
     sector: str | None
     chains: list[str] | None
     status: str
+    tvl: int | None = None
+    tvl_change_7d: float | None = None
+    token_symbol: str | None = None
+    market_cap: int | None = None
+    token_price_usd: float | None = None
+    github_stars: int | None = None
+    github_commits_30d: int | None = None
+    github_contributors: int | None = None
+    last_enriched_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

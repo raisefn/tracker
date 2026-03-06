@@ -1,4 +1,6 @@
-from sqlalchemy import String, Text
+from datetime import datetime
+
+from sqlalchemy import BigInteger, DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,5 +19,25 @@ class Project(Base, UUIDMixin, TimestampMixin):
     sector: Mapped[str | None] = mapped_column(String(100), index=True)
     chains: Mapped[list[str] | None] = mapped_column(ARRAY(String))
     status: Mapped[str] = mapped_column(String(50), default="active")  # active|acquired|dead|unknown
+
+    # DefiLlama protocol enrichment
+    defillama_slug: Mapped[str | None] = mapped_column(String(200))
+    tvl: Mapped[int | None] = mapped_column(BigInteger)
+    tvl_change_7d: Mapped[float | None] = mapped_column(Float)
+
+    # CoinGecko enrichment
+    coingecko_id: Mapped[str | None] = mapped_column(String(200))
+    token_symbol: Mapped[str | None] = mapped_column(String(50))
+    market_cap: Mapped[int | None] = mapped_column(BigInteger)
+    token_price_usd: Mapped[float | None] = mapped_column(Float)
+
+    # GitHub enrichment
+    github_org: Mapped[str | None] = mapped_column(String(200))
+    github_stars: Mapped[int | None] = mapped_column(Integer)
+    github_commits_30d: Mapped[int | None] = mapped_column(Integer)
+    github_contributors: Mapped[int | None] = mapped_column(Integer)
+
+    # Enrichment metadata
+    last_enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     rounds: Mapped[list["Round"]] = relationship(back_populates="project")  # noqa: F821

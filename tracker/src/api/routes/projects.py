@@ -25,10 +25,11 @@ async def list_projects(
     chain: str | None = Query(default=None),
     status: str | None = Query(default=None),
     search: str | None = Query(default=None, min_length=2),
+    sort: str | None = Query(default=None, description="Sort by: tvl, market_cap, github_stars, name"),
 ):
     params = {
         "limit": limit, "offset": offset, "sector": sector,
-        "chain": chain, "status": status, "search": search,
+        "chain": chain, "status": status, "search": search, "sort": sort,
     }
     ck = cache_key("projects", params)
 
@@ -53,7 +54,13 @@ async def list_projects(
         stmt = stmt.where(*filters)
         count_stmt = count_stmt.where(*filters)
 
-    stmt = stmt.order_by(Project.name).offset(offset).limit(limit)
+    sort_col = {
+        "tvl": Project.tvl.desc().nulls_last(),
+        "market_cap": Project.market_cap.desc().nulls_last(),
+        "github_stars": Project.github_stars.desc().nulls_last(),
+        "name": Project.name,
+    }.get(sort, Project.name)
+    stmt = stmt.order_by(sort_col).offset(offset).limit(limit)
 
     result = await db.execute(stmt)
     projects = result.scalars().all()

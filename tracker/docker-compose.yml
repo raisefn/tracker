@@ -35,6 +35,8 @@ services:
       RAISEFN_DATABASE_URL: postgresql+asyncpg://tracker:tracker@db:5432/tracker
       RAISEFN_REDIS_URL: redis://redis:6379/0
       RAISEFN_DEBUG: "false"
+      RAISEFN_COINGECKO_API_KEY: "${COINGECKO_API_KEY:-}"
+      RAISEFN_GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
     depends_on:
       db:
         condition: service_healthy
@@ -44,6 +46,7 @@ services:
       - ./src:/app/src
       - ./scripts:/app/scripts
       - ./tests:/app/tests
+      - ./alembic:/app/alembic
     command: uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
