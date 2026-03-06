@@ -1,13 +1,11 @@
 """Test fixtures for the tracker test suite."""
 
-import asyncio
 from collections.abc import AsyncGenerator
 
 import fakeredis.aioredis as fakeredis
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from src.api.app import app
 from src.api.auth import require_api_key
@@ -15,34 +13,30 @@ from src.api.deps import get_db, get_redis
 from src.config import settings
 from src.models.base import Base
 
-TEST_DB_URL = settings.database_url.replace("/tracker", "/tracker_test")
+TEST_DB_URL = settings.database_url.rsplit("/tracker", 1)[0] + "/tracker_test"
 
-engine = create_async_engine(TEST_DB_URL, echo=False)
-TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_database():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+_tables_ready = False
 
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    async with TestSession() as session:
-        async with session.begin():
-            yield session
-        await session.rollback()
+    global _tables_ready
+    engine = create_async_engine(TEST_DB_URL, echo=False, pool_size=1, max_overflow=0)
+
+    if not _tables_ready:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        _tables_ready = True
+
+    async with engine.connect() as conn:
+        trans = await conn.begin()
+        session = AsyncSession(bind=conn, expire_on_commit=False)
+        yield session
+        await session.close()
+        await trans.rollback()
+
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
