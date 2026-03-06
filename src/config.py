@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     min_confidence: float = 0.3
     coingecko_api_key: str = ""
     github_token: str = ""
+    etherscan_api_key: str = ""
 
     model_config = {"env_prefix": "RAISEFN_"}
 

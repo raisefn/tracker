@@ -37,6 +37,29 @@ class Project(Base, UUIDMixin, TimestampMixin):
     github_commits_30d: Mapped[int | None] = mapped_column(Integer)
     github_contributors: Mapped[int | None] = mapped_column(Integer)
 
+    # Snapshot governance enrichment
+    snapshot_space: Mapped[str | None] = mapped_column(String(200))
+    snapshot_proposals_count: Mapped[int | None] = mapped_column(Integer)
+    snapshot_voters_count: Mapped[int | None] = mapped_column(Integer)
+    snapshot_proposal_activity_30d: Mapped[int | None] = mapped_column(Integer)
+
+    # Reddit enrichment
+    reddit_subreddit: Mapped[str | None] = mapped_column(String(200))
+    reddit_subscribers: Mapped[int | None] = mapped_column(Integer)
+    reddit_active_users: Mapped[int | None] = mapped_column(Integer)
+
+    # Hacker News enrichment
+    hn_mentions_90d: Mapped[int | None] = mapped_column(Integer)
+    hn_total_points: Mapped[int | None] = mapped_column(Integer)
+
+    # CoinGecko community data
+    twitter_followers: Mapped[int | None] = mapped_column(Integer)
+    telegram_members: Mapped[int | None] = mapped_column(Integer)
+
+    # Etherscan on-chain enrichment
+    token_contract: Mapped[str | None] = mapped_column(String(100))
+    token_holder_count: Mapped[int | None] = mapped_column(Integer)
+
     # Enrichment metadata
     last_enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
