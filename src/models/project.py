@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, Float, Integer, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, TimestampMixin, UUIDMixin
@@ -62,5 +62,6 @@ class Project(Base, UUIDMixin, TimestampMixin):
 
     # Enrichment metadata
     last_enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_freshness: Mapped[dict | None] = mapped_column(JSONB)
 
     rounds: Mapped[list["Round"]] = relationship(back_populates="project")  # noqa: F821

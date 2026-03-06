@@ -10,7 +10,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.config import settings
 from src.models import Project
 
@@ -108,6 +108,7 @@ class GitHubEnricher(BaseEnricher):
                     project.github_contributors = total_contributors
                     project.github_commits_30d = total_commits_30d
                     project.last_enriched_at = datetime.now(timezone.utc)
+                    stamp_freshness(project, self.source_name())
                     result.records_updated += 1
 
                 except httpx.HTTPStatusError as e:

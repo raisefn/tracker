@@ -8,9 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.cache import cache_key, get_cached, set_cached
 from src.api.deps import get_db, get_redis
-from src.api.schemas import PaginationMeta, ProjectDetail, ProjectListResponse
+from src.api.schemas import (
+    MetricSnapshotOut, PaginationMeta, ProjectDetail,
+    ProjectListResponse, ProjectMetricsHistoryResponse,
+)
 from src.config import settings
-from src.models import Project
+from src.models import Project, ProjectMetricSnapshot
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -85,3 +88,40 @@ async def get_project(
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return ProjectDetail.model_validate(project)
+
+
+@router.get("/{slug}/metrics/history", response_model=ProjectMetricsHistoryResponse)
+async def get_project_metrics_history(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+    source: str | None = Query(default=None),
+    days: int = Query(default=30, ge=1, le=365),
+):
+    """Get historical metric snapshots for a project."""
+    project = (
+        await db.execute(select(Project).where(Project.slug == slug))
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    from datetime import datetime, timedelta, timezone
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    stmt = (
+        select(ProjectMetricSnapshot)
+        .where(
+            ProjectMetricSnapshot.project_id == project.id,
+            ProjectMetricSnapshot.snapshotted_at >= cutoff,
+        )
+        .order_by(ProjectMetricSnapshot.snapshotted_at.desc())
+    )
+    if source:
+        stmt = stmt.where(ProjectMetricSnapshot.source == source)
+
+    result = await db.execute(stmt)
+    snapshots = result.scalars().all()
+
+    return ProjectMetricsHistoryResponse(
+        project_slug=slug,
+        snapshots=[MetricSnapshotOut.model_validate(s) for s in snapshots],
+    )

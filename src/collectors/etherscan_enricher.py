@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.config import settings
 from src.models import Project
 
@@ -52,6 +52,7 @@ class EtherscanEnricher(BaseEnricher):
 
                     project.token_holder_count = holder_count
                     project.last_enriched_at = datetime.now(timezone.utc)
+                    stamp_freshness(project, self.source_name())
                     result.records_updated += 1
 
                     await asyncio.sleep(0.25)  # 5 calls/sec

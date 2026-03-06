@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.config import settings
 from src.models import Project
 
@@ -52,13 +52,16 @@ class CoinGeckoCommunityEnricher(BaseEnricher):
                         },
                     )
 
+                    delay = 2.5 if settings.coingecko_api_key else 7.0
+
                     if resp.status_code == 429:
-                        logger.warning("CoinGecko rate limited, stopping")
-                        result.errors.append("Rate limited by CoinGecko")
-                        break
+                        logger.warning("CoinGecko rate limited, waiting 60s")
+                        await asyncio.sleep(60)
+                        continue
 
                     if resp.status_code == 404:
                         result.records_skipped += 1
+                        await asyncio.sleep(delay)
                         continue
 
                     resp.raise_for_status()
@@ -87,11 +90,11 @@ class CoinGeckoCommunityEnricher(BaseEnricher):
 
                     if updated:
                         project.last_enriched_at = datetime.now(timezone.utc)
+                        stamp_freshness(project, self.source_name())
                         result.records_updated += 1
                     else:
                         result.records_skipped += 1
 
-                    delay = 2.5 if settings.coingecko_api_key else 7.0
                     await asyncio.sleep(delay)
 
                 except httpx.HTTPStatusError as e:

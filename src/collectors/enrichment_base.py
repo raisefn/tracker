@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +15,13 @@ class EnrichmentResult:
     records_updated: int = 0
     records_skipped: int = 0
     errors: list[str] = field(default_factory=list)
+
+
+def stamp_freshness(project: "Project", source: str) -> None:  # noqa: F821
+    """Update per-source freshness timestamp on a project."""
+    current = project.source_freshness or {}
+    current[source] = datetime.now(timezone.utc).isoformat()
+    project.source_freshness = current
 
 
 class BaseEnricher(ABC):
