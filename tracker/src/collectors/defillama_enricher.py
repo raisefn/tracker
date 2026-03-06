@@ -8,7 +8,7 @@ from slugify import slugify
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.models import Project
 
 logger = logging.getLogger(__name__)
@@ -97,6 +97,7 @@ class DefiLlamaProtocolEnricher(BaseEnricher):
                 project.chains = sorted(merged)
 
             project.last_enriched_at = datetime.now(timezone.utc)
+            stamp_freshness(project, self.source_name())
             result.records_updated += 1
 
         await session.flush()

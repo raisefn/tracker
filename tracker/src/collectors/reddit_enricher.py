@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.models import Project
 
 logger = logging.getLogger(__name__)
@@ -49,6 +49,7 @@ class RedditEnricher(BaseEnricher):
                     project.reddit_subscribers = data["subscribers"]
                     project.reddit_active_users = data["active_users"]
                     project.last_enriched_at = datetime.now(timezone.utc)
+                    stamp_freshness(project, self.source_name())
                     result.records_updated += 1
 
                     await asyncio.sleep(2.0)  # Reddit rate limits aggressively

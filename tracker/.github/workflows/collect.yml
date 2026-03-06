@@ -1,12 +1,26 @@
-name: Daily Collection
+name: Data Pipeline
 
 on:
   schedule:
-    - cron: "0 6 * * *"  # 6 AM UTC daily
-  workflow_dispatch:       # manual trigger
+    - cron: "0 */6 * * *"  # Every 6 hours: fast enrichers (market data)
+    - cron: "0 6 * * *"    # 6 AM UTC daily: collectors + all enrichers
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        type: choice
+        options:
+          - full
+          - fast
+          - collect
+        default: full
 
 jobs:
-  collect:
+  # Daily: collect new rounds + run all enrichers
+  full-pipeline:
+    if: >
+      github.event_name == 'workflow_dispatch' && github.event.inputs.mode != 'fast' ||
+      github.event.schedule == '0 6 * * *'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -24,6 +38,9 @@ jobs:
           --health-retries 5
     env:
       RAISEFN_DATABASE_URL: postgresql+asyncpg://tracker:tracker@localhost:5432/tracker
+      RAISEFN_COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      RAISEFN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RAISEFN_ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,4 +48,43 @@ jobs:
           python-version: "3.12"
       - run: pip install -e .
       - run: alembic upgrade head
-      - run: python -m scripts.run_collectors
+      - name: Collect rounds
+        if: github.event.inputs.mode != 'fast'
+        run: python -m scripts.run_collectors
+      - name: Fast enrichers (batch APIs)
+        run: python -m scripts.run_enrichers defillama_protocols hackernews
+      - name: Slow enrichers (rate-limited)
+        run: python -m scripts.run_enrichers coingecko coingecko_community github reddit snapshot etherscan
+
+  # Every 6 hours: just fast market data enrichers
+  fast-enrich:
+    if: >
+      github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'fast' ||
+      github.event.schedule == '0 */6 * * *'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tracker
+          POSTGRES_PASSWORD: tracker
+          POSTGRES_DB: tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tracker"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      RAISEFN_DATABASE_URL: postgresql+asyncpg://tracker:tracker@localhost:5432/tracker
+      RAISEFN_COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: alembic upgrade head
+      - name: Fast enrichers (market data)
+        run: python -m scripts.run_enrichers defillama_protocols coingecko coingecko_community

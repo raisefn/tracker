@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.models import Project
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ class HackerNewsEnricher(BaseEnricher):
                     project.hn_mentions_90d = mentions
                     project.hn_total_points = points
                     project.last_enriched_at = datetime.now(timezone.utc)
+                    stamp_freshness(project, self.source_name())
                     result.records_updated += 1
 
                     await asyncio.sleep(0.5)  # 10,000 req/hr = generous

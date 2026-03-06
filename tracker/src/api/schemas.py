@@ -53,9 +53,40 @@ class ProjectDetail(BaseModel):
     telegram_members: int | None = None
     token_holder_count: int | None = None
     last_enriched_at: datetime | None = None
+    source_freshness: dict[str, str] | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# --- Metric Snapshots ---
+
+class MetricSnapshotOut(BaseModel):
+    source: str
+    snapshotted_at: datetime
+    metrics: dict
+
+    model_config = {"from_attributes": True}
+
+
+class ProjectMetricsHistoryResponse(BaseModel):
+    project_slug: str
+    snapshots: list[MetricSnapshotOut]
+
+
+# --- Co-investor ---
+
+class CoInvestorOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    shared_rounds: int
+
+
+class InvestorSectorOut(BaseModel):
+    sector: str
+    round_count: int
+    total_invested: int | None
 
 
 # --- Investor ---
@@ -77,6 +108,7 @@ class InvestorDetail(BaseModel):
     twitter: str | None
     description: str | None
     hq_location: str | None
+    rounds_count: int = 0
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -89,6 +121,8 @@ class RoundInvestorOut(BaseModel):
     name: str
     slug: str
     is_lead: bool
+    deal_lead_name: str | None = None
+    deal_lead_role: str | None = None
 
     model_config = {"from_attributes": True}
 

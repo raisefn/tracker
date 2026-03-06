@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.config import settings
 from src.models import Project
 
@@ -99,6 +99,7 @@ class CoinGeckoEnricher(BaseEnricher):
                             project.website = homepage[0]
 
                     project.last_enriched_at = datetime.now(timezone.utc)
+                    stamp_freshness(project, self.source_name())
                     result.records_updated += 1
 
                     # Rate limit: with API key 30 req/min, without ~10 req/min

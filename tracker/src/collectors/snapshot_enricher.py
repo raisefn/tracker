@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.models import Project
 
 logger = logging.getLogger(__name__)
@@ -52,9 +52,10 @@ class SnapshotEnricher(BaseEnricher):
                     project.snapshot_voters_count = stats["voters_count"]
                     project.snapshot_proposal_activity_30d = stats["recent_proposals"]
                     project.last_enriched_at = datetime.now(timezone.utc)
+                    stamp_freshness(project, self.source_name())
                     result.records_updated += 1
 
-                    await asyncio.sleep(1.0)  # Rate limit: 60 req/min
+                    await asyncio.sleep(2.0)  # Rate limit: stay well under 60 req/min
 
                 except Exception as e:
                     error_msg = f"Snapshot error for {project.slug}: {e}"
@@ -90,11 +91,15 @@ class SnapshotEnricher(BaseEnricher):
                 SNAPSHOT_API,
                 json={"query": query, "variables": {"id": candidate}},
             )
+            if resp.status_code == 429:
+                logger.warning("Snapshot rate limited, waiting 30s")
+                await asyncio.sleep(30)
+                continue
             if resp.status_code == 200:
                 data = resp.json().get("data", {}).get("space")
                 if data and data.get("proposalsCount", 0) > 0:
                     return data["id"]
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(2.0)
 
         return None
 
@@ -119,6 +124,10 @@ class SnapshotEnricher(BaseEnricher):
             SNAPSHOT_API,
             json={"query": query, "variables": {"space": space_id, "since": thirty_days_ago}},
         )
+        if resp.status_code == 429:
+            logger.warning("Snapshot rate limited on stats fetch, waiting 30s")
+            await asyncio.sleep(30)
+            return None
         if resp.status_code != 200:
             return None
 
