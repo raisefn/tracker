@@ -23,6 +23,21 @@ class ProjectBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FounderOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    role: str | None = None
+    linkedin: str | None = None
+    twitter: str | None = None
+    github: str | None = None
+    bio: str | None = None
+    previous_companies: list[dict] | None = None
+    source: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class ProjectDetail(BaseModel):
     id: uuid.UUID
     name: str
@@ -34,6 +49,10 @@ class ProjectDetail(BaseModel):
     sector: str | None
     chains: list[str] | None
     status: str
+    exit_type: str | None = None
+    exit_date: date | None = None
+    acquirer: str | None = None
+    exit_valuation_usd: int | None = None
     tvl: int | None = None
     tvl_change_7d: float | None = None
     token_symbol: str | None = None
@@ -52,6 +71,7 @@ class ProjectDetail(BaseModel):
     twitter_followers: int | None = None
     telegram_members: int | None = None
     token_holder_count: int | None = None
+    founders: list[FounderOut] = []
     last_enriched_at: datetime | None = None
     source_freshness: dict[str, str] | None = None
     created_at: datetime
@@ -99,6 +119,20 @@ class InvestorBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FundOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    vintage_year: int | None = None
+    fund_size_usd: int | None = None
+    focus_sectors: list[str] | None = None
+    focus_stages: list[str] | None = None
+    status: str | None = None
+    source: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class InvestorDetail(BaseModel):
     id: uuid.UUID
     name: str
@@ -109,6 +143,7 @@ class InvestorDetail(BaseModel):
     description: str | None
     hq_location: str | None
     rounds_count: int = 0
+    funds: list[FundOut] = []
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -123,6 +158,8 @@ class RoundInvestorOut(BaseModel):
     is_lead: bool
     deal_lead_name: str | None = None
     deal_lead_role: str | None = None
+    check_size_usd: int | None = None
+    participation_type: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -161,6 +198,100 @@ class InvestorListResponse(BaseModel):
 class ProjectListResponse(BaseModel):
     data: list[ProjectDetail]
     meta: PaginationMeta
+
+
+# --- Stats ---
+
+class RoundTypeBreakdown(BaseModel):
+    round_type: str
+    count: int
+    total_capital: int | None
+
+
+class PeriodChange(BaseModel):
+    total_rounds_pct: float | None
+    total_capital_pct: float | None
+
+
+class StatsOverviewResponse(BaseModel):
+    period: str
+    total_rounds: int
+    total_capital: int | None
+    avg_round_size: int | None
+    median_round_size: int | None
+    by_round_type: list[RoundTypeBreakdown]
+    prior_period_change: PeriodChange | None
+
+
+class SectorStatsOut(BaseModel):
+    sector: str
+    round_count: int
+    total_capital: int | None
+    avg_round_size: int | None
+
+
+class TopInvestorOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    round_count: int
+    total_deployed: int | None
+
+
+class StatsInvestorsResponse(BaseModel):
+    period: str
+    most_active: list[TopInvestorOut]
+    biggest_deployers: list[TopInvestorOut]
+
+
+class TrendPointOut(BaseModel):
+    period: str
+    value: float | None
+
+
+class StatsTrendsResponse(BaseModel):
+    metric: str
+    granularity: str
+    sector: str | None
+    data: list[TrendPointOut]
+
+
+# --- Search ---
+
+class SearchResultOut(BaseModel):
+    entity_type: str
+    id: uuid.UUID
+    name: str
+    slug: str
+    score: float
+    extra: dict = {}
+
+
+class SearchResponse(BaseModel):
+    results: list[SearchResultOut]
+    total: int
+
+
+# --- Comps ---
+
+class CompRoundBrief(BaseModel):
+    round_type: str | None
+    amount_usd: int | None
+    date: date
+
+    model_config = {"from_attributes": True}
+
+
+class CompOut(BaseModel):
+    project: ProjectBrief
+    score: int
+    match_reasons: list[str]
+    latest_round: CompRoundBrief | None
+
+
+class CompsResponse(BaseModel):
+    target: ProjectBrief
+    comps: list[CompOut]
 
 
 # --- Health ---

@@ -23,7 +23,7 @@ def test_make_slug_max_length():
 def test_normalize_sector_known():
     assert normalize_sector("DeFi") == "defi"
     assert normalize_sector("Infra") == "infrastructure"
-    assert normalize_sector("CEX") == "exchange"
+    assert normalize_sector("CEX") == "fintech"
     assert normalize_sector("DEX") == "defi"
 
 

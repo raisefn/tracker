@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 from src.api.cache import cache_key, get_cached, set_cached
 from src.api.deps import get_db, get_redis
@@ -51,6 +51,7 @@ async def list_investors(
     stmt = (
         select(Investor, func.coalesce(rounds_sub.c.rounds_count, 0).label("rounds_count"))
         .outerjoin(rounds_sub, Investor.id == rounds_sub.c.investor_id)
+        .options(selectinload(Investor.funds))
     )
     count_stmt = select(func.count(Investor.id))
 
@@ -110,6 +111,7 @@ async def get_investor(
     result = await db.execute(
         select(Investor, func.coalesce(rounds_sub.c.rounds_count, 0).label("rounds_count"))
         .outerjoin(rounds_sub, Investor.id == rounds_sub.c.investor_id)
+        .options(selectinload(Investor.funds))
         .where(Investor.slug == slug)
     )
     row = result.one_or_none()

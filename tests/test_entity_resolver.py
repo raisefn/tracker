@@ -27,6 +27,6 @@ def test_whitespace_stripping():
     assert resolve_investor_name("  Paradigm Fund  ") == "Paradigm"
 
 
-def test_exact_match_required():
-    # "a16Z" (capital Z) should not match "a16z"
-    assert resolve_investor_name("a16Z") == "a16Z"
+def test_case_insensitive_match():
+    # "a16Z" (capital Z) should still resolve via case-insensitive matching
+    assert resolve_investor_name("a16Z") == "Andreessen Horowitz"

@@ -4,6 +4,17 @@ from datetime import date
 
 
 @dataclass
+class RawFounder:
+    """Raw founder/executive data from a collector."""
+
+    name: str
+    role: str | None = None  # CEO, CTO, Co-Founder, Director, etc.
+    linkedin: str | None = None
+    twitter: str | None = None
+    github: str | None = None
+
+
+@dataclass
 class RawRound:
     """Raw round data from a collector, before normalization."""
 
@@ -15,6 +26,7 @@ class RawRound:
     valuation_usd: int | None = None
     lead_investors: list[str] = field(default_factory=list)
     other_investors: list[str] = field(default_factory=list)
+    founders: list[RawFounder] = field(default_factory=list)
     sector: str | None = None
     category: str | None = None
     chains: list[str] = field(default_factory=list)

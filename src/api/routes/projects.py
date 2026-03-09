@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.api.cache import cache_key, get_cached, set_cached
 from src.api.deps import get_db, get_redis
@@ -40,7 +41,7 @@ async def list_projects(
     if cached:
         return Response(content=cached, media_type="application/json")
 
-    stmt = select(Project)
+    stmt = select(Project).options(selectinload(Project.founders))
     count_stmt = select(func.count(Project.id))
 
     filters = []
@@ -83,7 +84,11 @@ async def get_project(
     slug: str,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Project).where(Project.slug == slug))
+    result = await db.execute(
+        select(Project)
+        .options(selectinload(Project.founders))
+        .where(Project.slug == slug)
+    )
     project = result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")

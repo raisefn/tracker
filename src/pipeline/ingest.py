@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.cache import invalidate_all
 from src.collectors.base import BaseCollector, RawRound
 from src.db.redis import get_redis_client
-from src.models import CollectorRun, Investor, Project, Round, RoundInvestor
+from src.models import CollectorRun, Founder, Investor, Project, Round, RoundInvestor
 from src.pipeline.entity_resolver import resolve_investor_name
 from src.pipeline.normalizer import make_slug, normalize_round
 from src.pipeline.validator import compute_confidence, validate_round
@@ -29,6 +29,28 @@ async def get_or_create_project(session: AsyncSession, name: str, raw: RawRound)
             sector=raw.sector,
             chains=raw.chains or None,
         )
+        # Set extended fields from raw_data if present
+        rd = raw.raw_data or {}
+        if rd.get("accelerator"):
+            project.accelerator = rd["accelerator"]
+        if rd.get("accelerator_batch"):
+            project.accelerator_batch = rd["accelerator_batch"]
+        if rd.get("one_liner"):
+            project.one_liner = rd["one_liner"]
+        if rd.get("team_size"):
+            project.team_size = rd["team_size"]
+        if rd.get("location"):
+            project.location = rd["location"]
+        if rd.get("cik"):
+            project.sec_cik = rd["cik"]
+        if rd.get("accession_number"):
+            project.sec_accession_number = rd["accession_number"]
+        if rd.get("state"):
+            project.sec_state = rd["state"]
+        if rd.get("industry_group"):
+            project.sec_industry_group = rd["industry_group"]
+        if rd.get("revenue_range"):
+            project.sec_revenue_range = rd["revenue_range"]
         session.add(project)
         await session.flush()
     return project
@@ -102,7 +124,39 @@ async def ingest_round(session: AsyncSession, raw: RawRound, source_type: str) -
             seen_slugs.add(investor.slug)
             session.add(RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=False))
 
+    # Create founder records if provided
+    if raw.founders:
+        await _ingest_founders(session, project, raw.founders, source_type)
+
     return True
+
+
+async def _ingest_founders(
+    session: AsyncSession, project: Project, founders: list, source_type: str
+) -> None:
+    """Create Founder records, skipping duplicates by slug within the project."""
+    # Get existing founder slugs for this project
+    existing = await session.execute(
+        select(Founder.slug).where(Founder.project_id == project.id)
+    )
+    existing_slugs = {row[0] for row in existing.all()}
+
+    for raw_founder in founders:
+        slug = make_slug(raw_founder.name)
+        if slug in existing_slugs:
+            continue
+        existing_slugs.add(slug)
+
+        session.add(Founder(
+            project_id=project.id,
+            name=raw_founder.name,
+            slug=slug,
+            role=raw_founder.role,
+            linkedin=raw_founder.linkedin,
+            twitter=raw_founder.twitter,
+            github=raw_founder.github,
+            source=source_type,
+        ))
 
 
 async def run_collector(session: AsyncSession, collector: BaseCollector) -> CollectorRun:
