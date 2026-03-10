@@ -17,3 +17,4 @@ class ApiKey(Base, UUIDMixin, TimestampMixin):
     tier: Mapped[str] = mapped_column(String(20), default="free")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

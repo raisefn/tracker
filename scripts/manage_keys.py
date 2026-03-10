@@ -3,6 +3,7 @@
 import asyncio
 import secrets
 import sys
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, update
 
@@ -10,15 +11,20 @@ from src.api.auth import hash_key
 from src.db.session import async_session
 from src.models.api_key import ApiKey
 
+DEFAULT_EXPIRY_DAYS = 90
+
 
 def generate_key() -> str:
     """Generate a 32-byte hex API key with rfn_ prefix."""
     return f"rfn_{secrets.token_hex(32)}"
 
 
-async def create_key(owner: str, tier: str = "free") -> None:
+async def create_key(owner: str, tier: str = "free", expiry_days: int | None = None) -> None:
     raw_key = generate_key()
     key_hash = hash_key(raw_key)
+    expires_at = None
+    if expiry_days is not None:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=expiry_days)
 
     async with async_session() as session:
         api_key = ApiKey(
@@ -26,6 +32,7 @@ async def create_key(owner: str, tier: str = "free") -> None:
             key_prefix=raw_key[:8],
             owner=owner,
             tier=tier,
+            expires_at=expires_at,
         )
         session.add(api_key)
         await session.commit()
@@ -33,6 +40,10 @@ async def create_key(owner: str, tier: str = "free") -> None:
     print(f"API key created for '{owner}' (tier: {tier})")
     print(f"Key: {raw_key}")
     print(f"Prefix: {raw_key[:8]}")
+    if expires_at:
+        print(f"Expires: {expires_at.strftime('%Y-%m-%d')}")
+    else:
+        print("Expires: never")
     print("Store this key securely — it will not be shown again.")
 
 
@@ -67,16 +78,17 @@ async def list_keys() -> None:
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python -m scripts.manage_keys <create|revoke|list> [args]")
-        print("  create <owner> [tier]  — Generate a new API key")
-        print("  revoke <prefix>        — Revoke a key by its prefix")
-        print("  list                   — List all keys")
+        print("  create <owner> [tier] [expiry_days]  — Generate a new API key")
+        print("  revoke <prefix>                      — Revoke a key by its prefix")
+        print("  list                                 — List all keys")
         sys.exit(1)
 
     cmd = sys.argv[1]
     if cmd == "create":
         owner = sys.argv[2] if len(sys.argv) > 2 else "default"
         tier = sys.argv[3] if len(sys.argv) > 3 else "free"
-        asyncio.run(create_key(owner, tier))
+        expiry = int(sys.argv[4]) if len(sys.argv) > 4 else None
+        asyncio.run(create_key(owner, tier, expiry))
     elif cmd == "revoke":
         if len(sys.argv) < 3:
             print("Usage: python -m scripts.manage_keys revoke <prefix>")

@@ -2,6 +2,7 @@
 
 import hashlib
 import time
+from datetime import datetime, timezone
 
 import redis.asyncio as redis
 from fastapi import Depends, HTTPException, Security
@@ -45,6 +46,9 @@ async def require_api_key(
     api_key = result.scalar_one_or_none()
     if api_key is None:
         raise HTTPException(status_code=401, detail="Invalid or inactive API key")
+
+    if api_key.expires_at and api_key.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="API key has expired")
 
     # Sliding window rate limit via Redis sorted set
     rate_key = f"raisefn:ratelimit:{api_key.id}"

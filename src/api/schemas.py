@@ -100,7 +100,12 @@ class CoInvestorOut(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
+    type: str | None = None
     shared_rounds: int
+    shared_sectors: list[str] = []
+    first_coinvest: date | None = None
+    latest_coinvest: date | None = None
+    both_led: int = 0
 
 
 class InvestorSectorOut(BaseModel):
@@ -117,6 +122,39 @@ class InvestorBrief(BaseModel):
     slug: str
 
     model_config = {"from_attributes": True}
+
+
+# --- Syndicates ---
+
+class SyndicateMemberOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+
+
+class SyndicateOut(BaseModel):
+    members: list[SyndicateMemberOut]
+    shared_rounds: int
+    sectors: list[str]
+    example_deals: list[str]
+
+
+class SyndicateResponse(BaseModel):
+    investor: InvestorBrief
+    syndicates: list[SyndicateOut]
+
+
+# --- Network stats ---
+
+class InvestorNetworkOut(BaseModel):
+    total_co_investors: int
+    avg_syndicate_size: float
+    lead_rate: float
+    rounds_as_lead: int
+    rounds_as_participant: int
+    avg_round_size: int | None
+    total_deployed: int | None
+    most_active_year: int | None
 
 
 class FundOut(BaseModel):

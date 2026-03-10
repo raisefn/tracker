@@ -4,6 +4,10 @@ from src.collectors.base import RawRound
 
 BITCOIN_GENESIS = date(2009, 1, 3)
 
+# Cross-source corroboration: each additional source confirming a round
+CORROBORATION_BOOST = 0.1
+MAX_CORROBORATION_BOOST = 0.3
+
 
 def validate_round(raw: RawRound) -> list[str]:
     """Validate a raw round. Returns list of failure reasons (empty = valid)."""

@@ -18,14 +18,14 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
 
     # Trigram indexes for fuzzy name search
-    op.execute("CREATE INDEX ix_projects_name_trgm ON projects USING gin (name gin_trgm_ops)")
-    op.execute("CREATE INDEX ix_investors_name_trgm ON investors USING gin (name gin_trgm_ops)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_projects_name_trgm ON projects USING gin (name gin_trgm_ops)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_investors_name_trgm ON investors USING gin (name gin_trgm_ops)")
 
     # Composite index for stats queries (date + sector grouping)
-    op.execute("CREATE INDEX ix_rounds_date_sector ON rounds (date, sector)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_rounds_date_sector ON rounds (date, sector)")
 
     # Index for round_type grouping in stats
-    op.create_index("ix_rounds_round_type", "rounds", ["round_type"])
+    op.execute("CREATE INDEX IF NOT EXISTS ix_rounds_round_type ON rounds (round_type)")
 
 
 def downgrade() -> None:

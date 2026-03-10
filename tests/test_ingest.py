@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from src.collectors.base import RawRound
 from src.models import Investor, Project, Round, RoundInvestor
-from src.pipeline.ingest import ingest_round, is_duplicate
+from src.pipeline.ingest import ingest_round
 
 
 def _make_raw(**kwargs) -> RawRound:

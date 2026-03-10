@@ -14,10 +14,18 @@ from src.collectors.coingecko_community_enricher import CoinGeckoCommunityEnrich
 from src.collectors.coingecko_enricher import CoinGeckoEnricher
 from src.collectors.defillama_enricher import DefiLlamaProtocolEnricher
 from src.collectors.etherscan_enricher import EtherscanEnricher
+from src.collectors.formd_promoters import FormDPromoterEnricher
 from src.collectors.github_enricher import GitHubEnricher
 from src.collectors.hackernews_enricher import HackerNewsEnricher
+from src.collectors.npm_enricher import NpmEnricher
+from src.collectors.producthunt_enricher import ProductHuntEnricher
+from src.collectors.propublica_990 import ProPublica990Enricher
+from src.collectors.pypi_enricher import PyPIEnricher
 from src.collectors.reddit_enricher import RedditEnricher
+from src.collectors.sec_13f import SEC13FEnricher
+from src.collectors.sec_form_adv import SECFormADVEnricher
 from src.collectors.snapshot_enricher import SnapshotEnricher
+from src.collectors.wellfound import WellfoundEnricher
 from src.db.session import async_session
 from src.pipeline.enrich import run_enricher
 
@@ -33,6 +41,14 @@ ENRICHERS = {
     "hackernews": HackerNewsEnricher,
     "coingecko_community": CoinGeckoCommunityEnricher,
     "etherscan": EtherscanEnricher,
+    "npm": NpmEnricher,
+    "pypi": PyPIEnricher,
+    "producthunt": ProductHuntEnricher,
+    "sec_form_adv": SECFormADVEnricher,
+    "sec_13f": SEC13FEnricher,
+    "formd_promoters": FormDPromoterEnricher,
+    "propublica_990": ProPublica990Enricher,
+    "wellfound": WellfoundEnricher,
 }
 
 

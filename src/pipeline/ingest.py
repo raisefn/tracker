@@ -1,10 +1,11 @@
 """Main ingestion pipeline: collect → normalize → validate → dedup → store."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.api.cache import invalidate_all
 from src.collectors.base import BaseCollector, RawRound
@@ -12,7 +13,7 @@ from src.db.redis import get_redis_client
 from src.models import CollectorRun, Founder, Investor, Project, Round, RoundInvestor
 from src.pipeline.entity_resolver import resolve_investor_name
 from src.pipeline.normalizer import make_slug, normalize_round
-from src.pipeline.validator import compute_confidence, validate_round
+from src.pipeline.validator import CORROBORATION_BOOST, MAX_CORROBORATION_BOOST, compute_confidence, validate_round
 
 logger = logging.getLogger(__name__)
 
@@ -68,16 +69,92 @@ async def get_or_create_investor(session: AsyncSession, name: str) -> Investor:
     return investor
 
 
-async def is_duplicate(session: AsyncSession, project_id, round_date, amount_usd) -> bool:
-    """Check if a round already exists (same project, date, amount)."""
+async def find_existing_round(
+    session: AsyncSession, project_id, round_date, amount_usd
+) -> Round | None:
+    """Find an existing round that matches (exact or fuzzy).
+
+    Returns the existing Round or None.
+    """
+    # 1. Exact match: same project, date, amount
     stmt = select(Round).where(
         Round.project_id == project_id,
         Round.date == round_date,
     )
     if amount_usd is not None:
         stmt = stmt.where(Round.amount_usd == amount_usd)
-    result = await session.execute(stmt)
-    return result.scalar_one_or_none() is not None
+    existing = (await session.execute(
+        stmt.options(selectinload(Round.investor_participations))
+    )).scalar_one_or_none()
+    if existing:
+        return existing
+
+    # 2. Fuzzy match: same project, date ±7 days, amount ±20%
+    if amount_usd is not None:
+        stmt = (
+            select(Round)
+            .where(
+                Round.project_id == project_id,
+                Round.date.between(
+                    round_date - timedelta(days=7),
+                    round_date + timedelta(days=7),
+                ),
+                Round.amount_usd.between(
+                    int(amount_usd * 0.8),
+                    int(amount_usd * 1.2),
+                ),
+            )
+            .options(selectinload(Round.investor_participations))
+            .limit(1)
+        )
+        existing = (await session.execute(stmt)).scalar_one_or_none()
+        if existing:
+            return existing
+
+    return None
+
+
+async def _merge_into_existing(
+    session: AsyncSession, existing: Round, raw: RawRound, source_type: str
+) -> None:
+    """Merge a duplicate round into an existing one: boost confidence, add investors."""
+    # Boost confidence from corroboration
+    # Create a new dict to ensure SQLAlchemy detects the JSONB mutation
+    raw_data = dict(existing.raw_data) if existing.raw_data else {}
+    sources = list(raw_data.get("corroborating_sources", []))
+    if source_type not in sources:
+        sources.append(source_type)
+        raw_data["corroborating_sources"] = sources
+        existing.raw_data = raw_data
+
+        existing.confidence = min(1.0, existing.confidence + CORROBORATION_BOOST)
+
+    # Add any new investors not already on this round
+    existing_inv_ids = {ri.investor_id for ri in existing.investor_participations}
+
+    for inv_name in raw.lead_investors:
+        investor = await get_or_create_investor(session, inv_name)
+        if investor.id not in existing_inv_ids:
+            existing_inv_ids.add(investor.id)
+            session.add(RoundInvestor(
+                round_id=existing.id, investor_id=investor.id, is_lead=True,
+            ))
+
+    for inv_name in raw.other_investors:
+        investor = await get_or_create_investor(session, inv_name)
+        if investor.id not in existing_inv_ids:
+            existing_inv_ids.add(investor.id)
+            session.add(RoundInvestor(
+                round_id=existing.id, investor_id=investor.id, is_lead=False,
+            ))
+
+    # Fill in missing fields from the new source
+    if raw.valuation_usd and not existing.valuation_usd:
+        existing.valuation_usd = raw.valuation_usd
+    if raw.round_type and not existing.round_type:
+        existing.round_type = raw.round_type
+    if raw.source_url and not existing.source_url:
+        existing.source_url = raw.source_url
 
 
 async def ingest_round(session: AsyncSession, raw: RawRound, source_type: str) -> bool:
@@ -88,7 +165,9 @@ async def ingest_round(session: AsyncSession, raw: RawRound, source_type: str) -
 
     project = await get_or_create_project(session, raw.project_name, raw)
 
-    if await is_duplicate(session, project.id, raw.date, raw.amount_usd):
+    existing = await find_existing_round(session, project.id, raw.date, raw.amount_usd)
+    if existing:
+        await _merge_into_existing(session, existing, raw, source_type)
         return False
 
     round_record = Round(

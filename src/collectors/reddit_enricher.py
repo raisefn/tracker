@@ -28,7 +28,7 @@ class RedditEnricher(BaseEnricher):
         if not projects:
             return result
 
-        headers = {"User-Agent": "raisefn-tracker/1.0 (crypto research)"}
+        headers = {"User-Agent": "raisefn-tracker/1.0 (startup research)"}
 
         async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
             for project in projects:
@@ -75,11 +75,12 @@ class RedditEnricher(BaseEnricher):
             project.name.lower().replace(" ", ""),
             project.name.replace(" ", ""),
         ]
-        # Also try with "protocol" suffix removed
+        # Try with common suffixes removed
         for base in [project.slug, project.name.lower()]:
-            cleaned = base.replace(" protocol", "").replace("protocol", "").strip()
-            if cleaned and cleaned not in candidates:
-                candidates.append(cleaned)
+            for suffix in [" protocol", "protocol", " labs", "labs", " ai", " io", " app"]:
+                cleaned = base.replace(suffix, "").strip()
+                if cleaned and cleaned not in candidates:
+                    candidates.append(cleaned)
 
         seen = set()
         for candidate in candidates:

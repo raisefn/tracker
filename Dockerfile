@@ -10,5 +10,9 @@ RUN pip install --no-cache-dir .
 COPY alembic.ini .
 COPY alembic/ alembic/
 COPY scripts/ scripts/
+RUN chmod +x scripts/start.sh
 
-CMD ["uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+RUN adduser --disabled-password --gecos '' appuser
+USER appuser
+
+CMD ["scripts/start.sh"]

@@ -5,10 +5,27 @@ import logging
 from contextlib import asynccontextmanager
 
 import redis.asyncio as redis
-from fastapi import Depends, FastAPI
-from fastapi.responses import Response
+from fastapi import Depends, FastAPI, Request
+
+from src.pipeline.log_sanitizer import sanitize
+
+
+class _SanitizingFilter(logging.Filter):
+    """Strip sensitive data (tokens, passwords) from all log records."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = sanitize(record.msg)
+        return True
+
+
+# Apply to root logger so all modules benefit
+logging.getLogger().addFilter(_SanitizingFilter())
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.api.auth import require_api_key
 from src.api.cache import cache_key, get_cached, set_cached
@@ -36,11 +53,31 @@ async def lifespan(app: FastAPI):
     logger.info("Background scheduler stopped")
 
 
+class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
+    """Redirect HTTP to HTTPS in production (behind reverse proxy)."""
+
+    async def dispatch(self, request: Request, call_next):
+        proto = request.headers.get("x-forwarded-proto", "https")
+        if proto == "http" and not settings.debug:
+            url = request.url.replace(scheme="https")
+            return RedirectResponse(url=str(url), status_code=301)
+        return await call_next(request)
+
+
 app = FastAPI(
     title="raisefn tracker",
     description="Startup fundraising intelligence — open data layer",
     version="0.2.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(HTTPSRedirectMiddleware)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_methods=["GET"],
+    allow_headers=["X-API-Key"],
 )
 
 app.include_router(rounds.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
