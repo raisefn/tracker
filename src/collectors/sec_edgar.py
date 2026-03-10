@@ -426,7 +426,7 @@ class SECEdgarXMLCollector(BaseCollector):
     EFTS_URL = "https://efts.sec.gov/LATEST/search-index"
     EFTS_PAGE_SIZE = 100  # EFTS returns up to 100 per page
     XML_CONCURRENCY = 1  # Sequential XML fetches to avoid SEC rate limits
-    SEC_RATE_LIMIT = 0.15  # seconds between requests (≈6/sec)
+    SEC_RATE_LIMIT = 0.5  # seconds between requests (2/sec, conservative for backfill)
 
     def __init__(self, start_date: date, end_date: date):
         self.start_date = start_date
@@ -541,10 +541,10 @@ class SECEdgarXMLCollector(BaseCollector):
         )
 
         try:
-            for attempt in range(3):
+            for attempt in range(4):
                 resp = await client.get(url)
                 if resp.status_code == 429:
-                    wait = 2 ** attempt + 1
+                    wait = 5 * (2 ** attempt)  # 5, 10, 20, 40 seconds
                     logger.debug(f"Rate limited, waiting {wait}s...")
                     await asyncio.sleep(wait)
                     continue
