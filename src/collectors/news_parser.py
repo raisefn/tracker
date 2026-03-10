@@ -163,15 +163,74 @@ def clean_company_name(name: str) -> str:
     return name
 
 
+# --- Investor name validation ---
+
+# Words that indicate a sentence fragment, not an investor name
+_NOISE_WORDS = {
+    "the", "a", "an", "its", "their", "his", "her", "this", "that", "these",
+    "those", "former", "current", "existing", "new", "other", "several",
+    "various", "multiple", "more", "others", "undisclosed", "unnamed",
+    "anonymous", "prominent", "notable", "major", "leading", "backed",
+    "according", "sources", "reportedly", "said", "also", "which", "where",
+    "who", "whom", "whose", "what", "when", "how", "about",
+}
+
+# HTML entities that indicate garbage extraction
+_HTML_ENTITY_PATTERN = re.compile(r"&#?\w+;")
+
+
+def is_valid_investor_name(name: str) -> bool:
+    """Check if an extracted string looks like a real investor name.
+
+    Rejects sentence fragments, HTML entities, generic descriptions,
+    and names that don't start with a capital letter or number.
+    """
+    if not name or len(name) < 2 or len(name) > 80:
+        return False
+
+    # Reject HTML entities (e.g. "EQT Ventures &#38; Growth")
+    if _HTML_ENTITY_PATTERN.search(name):
+        return False
+
+    # Must start with uppercase letter or digit (e.g. "8VC", "a16z")
+    if not name[0].isupper() and not name[0].isdigit():
+        return False
+
+    # Reject if first word (lowercased) is a noise word
+    first_word = name.split()[0].lower().rstrip("'s")
+    if first_word in _NOISE_WORDS:
+        return False
+
+    # Reject if it contains too many lowercase words (sentence fragment)
+    words = name.split()
+    if len(words) > 2:
+        lowercase_count = sum(1 for w in words if w[0].islower() and w not in ("a16z", "de", "von", "van", "del", "of", "and", "for"))
+        if lowercase_count > len(words) * 0.6:
+            return False
+
+    # Reject possessive descriptions like "GitHub's former CEO"
+    if "'s " in name and any(w in name.lower() for w in ["ceo", "cto", "founder", "president", "director", "chief", "head", "vp"]):
+        return False
+
+    # Reject if it looks like a sentence (contains verbs)
+    lower = name.lower()
+    sentence_verbs = ["has ", "have ", "will ", "would ", "could ", "should ", "is ", "are ", "was ", "were ", "been "]
+    if any(v in lower for v in sentence_verbs):
+        return False
+
+    return True
+
+
 # --- Investor extraction ---
 
 LED_BY_PATTERN = re.compile(
-    r"led\s+by\s+([A-Z][\w\s&.']+?)(?:\s+and\s+([A-Z][\w\s&.']+?))?(?:\s*[,.]|\s+with|\s+in|\s+to|\s+at|\s*$)",
+    r"(?:led|co-led)\s+by\s+([A-Z][\w\s&.']+?)(?:\s+and\s+([A-Z][\w\s&.']+?))?(?:\s*[,.]|\s+with|\s+alongside|\s+in|\s+to|\s+at|\s*$)",
     re.IGNORECASE,
 )
 
 PARTICIPATION_PATTERN = re.compile(
-    r"(?:with\s+participation\s+from|backed\s+by|investors?\s+include|joined\s+by)\s+(.+?)(?:\.\s|$)",
+    r"(?:with\s+participation\s+from|backed\s+by|investors?\s+include|joined\s+by"
+    r"|alongside|co-investors?\s+include|also\s+investing)\s+(.+?)(?:\.\s|$)",
     re.IGNORECASE,
 )
 
@@ -187,12 +246,12 @@ def extract_investors(text: str) -> tuple[list[str], list[str]]:
     led_match = LED_BY_PATTERN.search(text)
     if led_match:
         lead1 = led_match.group(1).strip().rstrip(",.")
-        if lead1 and 1 < len(lead1) < 100:
+        if is_valid_investor_name(lead1):
             leads.append(lead1)
         lead2 = led_match.group(2)
         if lead2:
             lead2 = lead2.strip().rstrip(",.")
-            if lead2 and 1 < len(lead2) < 100:
+            if is_valid_investor_name(lead2):
                 leads.append(lead2)
 
     part_match = PARTICIPATION_PATTERN.search(text)
@@ -201,7 +260,7 @@ def extract_investors(text: str) -> tuple[list[str], list[str]]:
         parts = re.split(r",\s*|\s+and\s+", participants_str)
         for p in parts:
             name = re.sub(r"^and\s+", "", p.strip()).strip().rstrip(",.")
-            if name and 1 < len(name) < 100:
+            if is_valid_investor_name(name):
                 if not any(w in name.lower() for w in ["others", "more", "various", "several"]):
                     others.append(name)
 

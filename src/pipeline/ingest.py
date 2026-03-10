@@ -11,7 +11,7 @@ from src.api.cache import invalidate_all
 from src.collectors.base import BaseCollector, RawRound
 from src.db.redis import get_redis_client
 from src.models import CollectorRun, Founder, Investor, Project, Round, RoundInvestor
-from src.collectors.news_parser import clean_company_name
+from src.collectors.news_parser import clean_company_name, is_valid_investor_name
 from src.pipeline.entity_resolver import resolve_investor_name
 from src.pipeline.webhook_dispatch import dispatch_event
 from src.pipeline.normalizer import make_slug, normalize_round
@@ -60,7 +60,11 @@ async def get_or_create_project(session: AsyncSession, name: str, raw: RawRound)
     return project
 
 
-async def get_or_create_investor(session: AsyncSession, name: str) -> Investor:
+async def get_or_create_investor(session: AsyncSession, name: str) -> Investor | None:
+    """Resolve and create an investor. Returns None if the name is invalid."""
+    if not is_valid_investor_name(name):
+        logger.debug(f"Rejected invalid investor name: {name!r}")
+        return None
     canonical = resolve_investor_name(name)
     slug = make_slug(canonical)
     result = await session.execute(select(Investor).where(Investor.slug == slug))
@@ -137,7 +141,7 @@ async def _merge_into_existing(
 
     for inv_name in raw.lead_investors:
         investor = await get_or_create_investor(session, inv_name)
-        if investor.id not in existing_inv_ids:
+        if investor and investor.id not in existing_inv_ids:
             existing_inv_ids.add(investor.id)
             session.add(RoundInvestor(
                 round_id=existing.id, investor_id=investor.id, is_lead=True,
@@ -145,7 +149,7 @@ async def _merge_into_existing(
 
     for inv_name in raw.other_investors:
         investor = await get_or_create_investor(session, inv_name)
-        if investor.id not in existing_inv_ids:
+        if investor and investor.id not in existing_inv_ids:
             existing_inv_ids.add(investor.id)
             session.add(RoundInvestor(
                 round_id=existing.id, investor_id=investor.id, is_lead=False,
@@ -198,13 +202,13 @@ async def ingest_round(
 
     for inv_name in raw.lead_investors:
         investor = await get_or_create_investor(session, inv_name)
-        if investor.slug not in seen_slugs:
+        if investor and investor.slug not in seen_slugs:
             seen_slugs.add(investor.slug)
             session.add(RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=True))
 
     for inv_name in raw.other_investors:
         investor = await get_or_create_investor(session, inv_name)
-        if investor.slug not in seen_slugs:
+        if investor and investor.slug not in seen_slugs:
             seen_slugs.add(investor.slug)
             session.add(RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=False))
 

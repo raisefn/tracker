@@ -33,24 +33,24 @@ _extract_investors = extract_investors
 RSS_FEEDS = [
     # --- General startup funding ---
     {
-        "name": "TechCrunch Funding",
-        "url": "https://techcrunch.com/category/fundings-exits/feed/",
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/feed/",
     },
     {
         "name": "Crunchbase News Venture",
         "url": "https://news.crunchbase.com/sections/venture/feed/",
     },
     {
-        "name": "VentureBeat Deals",
-        "url": "https://venturebeat.com/category/deals/feed/",
+        "name": "VentureBeat",
+        "url": "https://venturebeat.com/feed/",
     },
     {
         "name": "Forbes Innovation",
         "url": "https://www.forbes.com/innovation/feed/",
     },
     {
-        "name": "Axios Pro Rata",
-        "url": "https://api.axios.com/feed/pro-rata",
+        "name": "Axios",
+        "url": "https://api.axios.com/feed/",
     },
     {
         "name": "SaaStr",
@@ -58,21 +58,29 @@ RSS_FEEDS = [
     },
     # --- Crypto-specific ---
     {
-        "name": "The Block Funding",
-        "url": "https://www.theblock.co/rss/funding",
+        "name": "The Block",
+        "url": "https://www.theblock.co/rss.xml",
     },
     {
-        "name": "CoinDesk Business",
+        "name": "CoinDesk",
         "url": "https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml&_website=coindesk",
+    },
+    {
+        "name": "Decrypt",
+        "url": "https://decrypt.co/feed",
+    },
+    {
+        "name": "DL News",
+        "url": "https://www.dlnews.com/arc/outboundfeeds/rss/",
+    },
+    {
+        "name": "Blockworks",
+        "url": "https://blockworks.com/feed",
     },
     # --- Regional / ecosystem ---
     {
         "name": "EU-Startups",
         "url": "https://www.eu-startups.com/feed/",
-    },
-    {
-        "name": "TechInAsia",
-        "url": "https://www.techinasia.com/feed",
     },
 ]
 
