@@ -11,7 +11,9 @@ from src.api.cache import invalidate_all
 from src.collectors.base import BaseCollector, RawRound
 from src.db.redis import get_redis_client
 from src.models import CollectorRun, Founder, Investor, Project, Round, RoundInvestor
+from src.collectors.news_parser import clean_company_name
 from src.pipeline.entity_resolver import resolve_investor_name
+from src.pipeline.webhook_dispatch import dispatch_event
 from src.pipeline.normalizer import make_slug, normalize_round
 from src.pipeline.validator import CORROBORATION_BOOST, MAX_CORROBORATION_BOOST, compute_confidence, validate_round
 
@@ -19,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_or_create_project(session: AsyncSession, name: str, raw: RawRound) -> Project:
+    name = clean_company_name(name)
     slug = make_slug(name)
     result = await session.execute(select(Project).where(Project.slug == slug))
     project = result.scalar_one_or_none()
@@ -157,8 +160,10 @@ async def _merge_into_existing(
         existing.source_url = raw.source_url
 
 
-async def ingest_round(session: AsyncSession, raw: RawRound, source_type: str) -> bool:
-    """Ingest a single round. Returns True if new round was created."""
+async def ingest_round(
+    session: AsyncSession, raw: RawRound, source_type: str
+) -> dict | None:
+    """Ingest a single round. Returns event data dict if new, None if duplicate."""
     raw = normalize_round(raw)
     failures = validate_round(raw)
     confidence = compute_confidence(raw, source_type, failures)
@@ -168,7 +173,7 @@ async def ingest_round(session: AsyncSession, raw: RawRound, source_type: str) -
     existing = await find_existing_round(session, project.id, raw.date, raw.amount_usd)
     if existing:
         await _merge_into_existing(session, existing, raw, source_type)
-        return False
+        return None
 
     round_record = Round(
         project_id=project.id,
@@ -207,7 +212,14 @@ async def ingest_round(session: AsyncSession, raw: RawRound, source_type: str) -
     if raw.founders:
         await _ingest_founders(session, project, raw.founders, source_type)
 
-    return True
+    return {
+        "round_id": str(round_record.id),
+        "project": project.name,
+        "round_type": raw.round_type,
+        "amount_usd": raw.amount_usd,
+        "date": str(raw.date),
+        "source_type": source_type,
+    }
 
 
 async def _ingest_founders(
@@ -250,14 +262,16 @@ async def run_collector(session: AsyncSession, collector: BaseCollector) -> Coll
 
         new_count = 0
         flagged_count = 0
+        new_round_events: list[dict] = []
 
         for raw in raw_rounds:
             try:
                 # Use savepoint so one failed round doesn't kill the batch
                 async with session.begin_nested():
-                    is_new = await ingest_round(session, raw, collector.source_type())
-                    if is_new:
+                    event_data = await ingest_round(session, raw, collector.source_type())
+                    if event_data:
                         new_count += 1
+                        new_round_events.append(event_data)
             except Exception as e:
                 flagged_count += 1
                 logger.warning(f"Failed to ingest round {raw.project_name}: {e}")
@@ -273,6 +287,13 @@ async def run_collector(session: AsyncSession, collector: BaseCollector) -> Coll
             await invalidate_all(r)
         finally:
             await r.aclose()
+
+        # Dispatch webhook events for new rounds
+        for event_data in new_round_events:
+            try:
+                await dispatch_event(session, "round.created", event_data)
+            except Exception as e:
+                logger.warning(f"Webhook dispatch failed: {e}")
 
     except Exception as e:
         run.errors = {"error": str(e)}

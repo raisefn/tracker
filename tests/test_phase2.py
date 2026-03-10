@@ -31,7 +31,7 @@ async def test_founders_ingested_from_raw_round(db_session):
     )
 
     result = await ingest_round(db_session, raw, "manual")
-    assert result is True
+    assert result is not None
 
     from sqlalchemy import select
     from src.pipeline.normalizer import make_slug

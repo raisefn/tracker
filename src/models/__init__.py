@@ -8,9 +8,11 @@ from src.models.project import Project
 from src.models.project_metric_snapshot import ProjectMetricSnapshot
 from src.models.round import Round
 from src.models.round_investor import RoundInvestor
+from src.models.webhook import Webhook
 
 __all__ = [
     "ApiKey", "Base", "CollectorRun", "Founder", "Fund",
     "Investor", "InvestorAlias",
     "Project", "ProjectMetricSnapshot", "Round", "RoundInvestor",
+    "Webhook",
 ]

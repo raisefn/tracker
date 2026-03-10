@@ -269,10 +269,10 @@ async def test_cross_source_exact_dedup(db_session):
     )
 
     result1 = await ingest_round(db_session, raw1, "defillama")
-    assert result1 is True  # New round
+    assert result1 is not None  # New round
 
     result2 = await ingest_round(db_session, raw2, "news")
-    assert result2 is False  # Duplicate, merged
+    assert result2 is None  # Duplicate, merged
 
     # Should only have 1 round
     from src.pipeline.normalizer import make_slug
@@ -316,10 +316,10 @@ async def test_cross_source_fuzzy_dedup(db_session):
     )
 
     result1 = await ingest_round(db_session, raw1, "defillama")
-    assert result1 is True
+    assert result1 is not None
 
     result2 = await ingest_round(db_session, raw2, "news")
-    assert result2 is False  # Should be caught by fuzzy dedup
+    assert result2 is None  # Should be caught by fuzzy dedup
 
     from src.pipeline.normalizer import make_slug
     project_slug = make_slug(f"FuzzyDedup-{uid}")
@@ -399,8 +399,8 @@ async def test_no_false_positive_dedup(db_session):
     result1 = await ingest_round(db_session, raw1, "defillama")
     result2 = await ingest_round(db_session, raw2, "defillama")
 
-    assert result1 is True
-    assert result2 is True  # Different project, should create new round
+    assert result1 is not None
+    assert result2 is not None  # Different project, should create new round
 
     total = (await db_session.execute(
         select(Round).where(Round.date == date(2024, 5, 1))

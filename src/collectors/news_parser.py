@@ -92,12 +92,30 @@ RAISES_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Prefixes to strip from extracted company names
+# Prefixes to strip from extracted company names (applied repeatedly)
 TITLE_PREFIXES = re.compile(
     r"^(?:exclusive:\s*|breaking:\s*|report:\s*|updated?:\s*"
-    r"|startup\s+|fintech\s+|healthtech\s+"
-    r"|ai\s+startup\s+|crypto\s+startup\s+"
-    r"|web3\s+startup\s+|saas\s+startup\s+)",
+    # Region/country descriptors
+    r"|(?:south\s+)?korean\s+|chinese\s+|japanese\s+|indian\s+|israeli\s+"
+    r"|european\s+|american\s+|british\s+|german\s+|french\s+|brazilian\s+"
+    r"|singaporean\s+|hong\s+kong(?:-based)?\s+|uk(?:-based)?\s+"
+    r"|us(?:-based)?\s+|london(?:-based)?\s+|sf(?:-based)?\s+"
+    r"|new\s+york(?:-based)?\s+|silicon\s+valley(?:-based)?\s+"
+    # Industry descriptors before company name
+    r"|(?:ai|crypto|blockchain|defi|web3|nft|saas|fintech|healthtech"
+    r"|biotech|edtech|proptech|insurtech|regtech|legaltech|agtech|cleantech"
+    r"|medtech|deeptech|gamefi|socialfi)\s+"
+    # Generic business descriptors
+    r"|(?:startup|firm|company|platform|protocol|network|exchange|lender"
+    r"|maker|developer|provider|unicorn|giant|player)\s+"
+    r"|(?:game|gaming|data|security|payments?|lending|trading|analytics"
+    r"|infrastructure|cloud|mobile|digital|virtual|enterprise)\s+)",
+    re.IGNORECASE,
+)
+
+# Boundary words — text after these is noise, not part of the company name
+_BOUNDARY_PATTERN = re.compile(
+    r"\s*[,–—]\s+|\s+(?:formerly|aka|previously|now\s+known\s+as|f/k/a)\s+",
     re.IGNORECASE,
 )
 
@@ -106,10 +124,41 @@ FUNDING_KEYWORDS = [
     "announces", "completes", "unveils",
 ]
 
+# Max reasonable length for a company name
+_MAX_NAME_LEN = 60
+
 
 def clean_company_name(name: str) -> str:
-    """Clean up extracted company name."""
-    name = TITLE_PREFIXES.sub("", name)
+    """Clean up extracted company name.
+
+    Strips news headline prefixes (region, industry, generic descriptors),
+    stops at boundary words, and caps length.
+    """
+    # Strip punctuation wrapping
+    name = name.strip("',\":-–—").strip()
+
+    # Cut at boundary words (commas, dashes, "formerly", etc.)
+    name = _BOUNDARY_PATTERN.split(name)[0].strip()
+
+    # Repeatedly strip prefix patterns (handles "South Korean AI game firm Verse8")
+    prev = None
+    while prev != name:
+        prev = name
+        name = TITLE_PREFIXES.sub("", name).strip()
+
+    # If still too long, take the last capitalized word(s) as the likely company name
+    if len(name) > _MAX_NAME_LEN:
+        # Try to find the last proper noun chunk
+        words = name.split()
+        # Walk backwards to find the start of the final proper noun phrase
+        start = len(words) - 1
+        while start > 0 and words[start - 1][0:1].isupper():
+            start -= 1
+        candidate = " ".join(words[start:])
+        if len(candidate) >= 2:
+            name = candidate
+
+    # Final cleanup
     name = name.strip("',\":-–—").strip()
     return name
 

@@ -7,8 +7,44 @@ import pytest
 from sqlalchemy import select
 
 from src.collectors.base import RawRound
+from src.collectors.news_parser import clean_company_name
 from src.models import Investor, Project, Round, RoundInvestor
 from src.pipeline.ingest import ingest_round
+
+
+# --- Company name cleaning ---
+
+
+def test_clean_headline_prefix():
+    assert clean_company_name("South Korean AI game firm Verse8") == "Verse8"
+
+
+def test_clean_crypto_startup_prefix():
+    assert clean_company_name("Crypto startup Aave") == "Aave"
+
+
+def test_clean_multiple_descriptors():
+    assert clean_company_name("Indian fintech startup Razorpay") == "Razorpay"
+
+
+def test_clean_boundary_comma():
+    assert clean_company_name("Verse8, a gaming startup") == "Verse8"
+
+
+def test_clean_boundary_dash():
+    assert clean_company_name("Verse8 — formerly GameCo") == "Verse8"
+
+
+def test_clean_already_clean():
+    assert clean_company_name("Uniswap") == "Uniswap"
+
+
+def test_clean_exclusive_prefix():
+    assert clean_company_name("Exclusive: MoonPay") == "MoonPay"
+
+
+def test_clean_preserves_multiword_names():
+    assert clean_company_name("Circle Internet Financial") == "Circle Internet Financial"
 
 
 def _make_raw(**kwargs) -> RawRound:
@@ -30,7 +66,7 @@ def _make_raw(**kwargs) -> RawRound:
 async def test_ingest_creates_project_and_investors(db_session):
     raw = _make_raw()
     result = await ingest_round(db_session, raw, "defillama")
-    assert result is True
+    assert result is not None
 
     # Check project was created
     proj = (await db_session.execute(
@@ -54,10 +90,10 @@ async def test_ingest_creates_project_and_investors(db_session):
 async def test_duplicate_detection(db_session):
     raw = _make_raw(project_name="DupTest")
     first = await ingest_round(db_session, raw, "defillama")
-    assert first is True
+    assert first is not None
 
     second = await ingest_round(db_session, raw, "defillama")
-    assert second is False
+    assert second is None
 
 
 @pytest.mark.asyncio
