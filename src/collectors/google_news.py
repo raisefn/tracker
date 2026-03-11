@@ -34,6 +34,10 @@ SEARCH_QUERIES = [
     '"Series A" OR "Series B" OR "seed round" "raises" "$"',
     '"led by" "$" "million" funding round',
     '"secures" "$" "million" funding',
+    '"pre-seed" OR "pre seed" "raises" "$" funding',
+    '"seed funding" "$" "million" startup',
+    '"closes" "$" "million" "round"',
+    '"announces" "$" "million" "funding"',
 ]
 
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"

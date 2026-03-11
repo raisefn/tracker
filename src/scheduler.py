@@ -23,8 +23,7 @@ from src.collectors.github_enricher import GitHubEnricher
 from src.collectors.google_news import GoogleNewsFundingCollector
 from src.collectors.hackernews_enricher import HackerNewsEnricher
 from src.collectors.npm_enricher import NpmEnricher
-from src.collectors.openvc import OpenVCCollector
-from src.collectors.pitchbook_news import PitchBookNewsCollector
+from src.collectors.defillama import DefiLlamaCollector
 from src.collectors.producthunt_enricher import ProductHuntEnricher
 from src.collectors.propublica_990 import ProPublica990Enricher
 from src.collectors.pypi_enricher import PyPIEnricher
@@ -34,7 +33,6 @@ from src.collectors.sec_13f import SEC13FEnricher
 from src.collectors.sec_edgar import SECEdgarBulkCollector, SECEdgarCollector
 from src.collectors.sec_form_adv import SECFormADVEnricher
 from src.collectors.snapshot_enricher import SnapshotEnricher
-from src.collectors.techstars import TechstarsCollector
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.db.session import async_session
@@ -96,7 +94,8 @@ async def hourly_tick() -> None:
 
 
 async def daily_tick() -> None:
-    """Run once per day: directories, dev metrics, token metrics, governance."""
+    """Run once per day: directories, raises, dev metrics, token metrics, governance."""
+    await run_collector_job("defillama", DefiLlamaCollector)
     await run_collector_job("yc_directory", YCDirectoryCollector)
     await run_enricher_job("github", GitHubEnricher)
     await run_enricher_job("npm", NpmEnricher)
@@ -112,16 +111,12 @@ async def daily_tick() -> None:
 
 
 async def weekly_tick() -> None:
-    """Run once per week: accelerators, SEC intelligence, new sources."""
-    await run_collector_job("techstars", TechstarsCollector)
+    """Run once per week: accelerators, SEC intelligence."""
     await run_collector_job("500_global", FiveHundredGlobalCollector)
     await run_enricher_job("sec_form_adv", SECFormADVEnricher)
     await run_enricher_job("sec_13f", SEC13FEnricher)
     await run_enricher_job("propublica_990", ProPublica990Enricher)
-    # New weekly sources
     await run_collector_job("sec_edgar_bulk", SECEdgarBulkCollector)
-    await run_collector_job("openvc", OpenVCCollector)
-    await run_collector_job("pitchbook_news", PitchBookNewsCollector)
     await run_enricher_job("wellfound", WellfoundEnricher)
 
 

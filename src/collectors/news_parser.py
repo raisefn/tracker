@@ -183,7 +183,7 @@ def is_valid_investor_name(name: str) -> bool:
     """Check if an extracted string looks like a real investor name.
 
     Rejects sentence fragments, HTML entities, generic descriptions,
-    and names that don't start with a capital letter or number.
+    SEC Form D junk entities, and names that don't start with a capital letter or number.
     """
     if not name or len(name) < 2 or len(name) > 80:
         return False
@@ -196,24 +196,43 @@ def is_valid_investor_name(name: str) -> bool:
     if not name[0].isupper() and not name[0].isdigit():
         return False
 
+    # Reject "N/A" prefixed names (SEC Form D artifact)
+    if name.startswith("N/A "):
+        return False
+
+    # Reject doubled names (SEC Form D artifact: "Foo LLC Foo LLC")
+    words = name.split()
+    if len(words) >= 4:
+        half = len(words) // 2
+        if words[:half] == words[half:2 * half]:
+            return False
+
+    # Reject SEC Form D entity types that aren't real investors
+    lower = name.lower()
+    _sec_junk = [
+        "depositor, llc", "depositor llc", "manager, llc", "manager llc",
+        "residential", "housing", "real estate", "property", "mortgage",
+        "trust company", "trustee",
+    ]
+    if any(junk in lower for junk in _sec_junk):
+        return False
+
     # Reject if first word (lowercased) is a noise word
-    first_word = name.split()[0].lower().rstrip("'s")
+    first_word = words[0].lower().rstrip("'s")
     if first_word in _NOISE_WORDS:
         return False
 
     # Reject if it contains too many lowercase words (sentence fragment)
-    words = name.split()
     if len(words) > 2:
         lowercase_count = sum(1 for w in words if w[0].islower() and w not in ("a16z", "de", "von", "van", "del", "of", "and", "for"))
         if lowercase_count > len(words) * 0.6:
             return False
 
     # Reject possessive descriptions like "GitHub's former CEO"
-    if "'s " in name and any(w in name.lower() for w in ["ceo", "cto", "founder", "president", "director", "chief", "head", "vp"]):
+    if "'s " in name and any(w in lower for w in ["ceo", "cto", "founder", "president", "director", "chief", "head", "vp"]):
         return False
 
     # Reject if it looks like a sentence (contains verbs)
-    lower = name.lower()
     sentence_verbs = ["has ", "have ", "will ", "would ", "could ", "should ", "is ", "are ", "was ", "were ", "been "]
     if any(v in lower for v in sentence_verbs):
         return False

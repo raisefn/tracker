@@ -7,11 +7,8 @@ import sys
 from src.collectors.accelerator_500 import FiveHundredGlobalCollector
 from src.collectors.defillama import DefiLlamaCollector
 from src.collectors.google_news import GoogleNewsFundingCollector
-from src.collectors.openvc import OpenVCCollector
-from src.collectors.pitchbook_news import PitchBookNewsCollector
 from src.collectors.rss_funding import RSSFundingCollector
 from src.collectors.sec_edgar import SECEdgarBulkCollector, SECEdgarCollector
-from src.collectors.techstars import TechstarsCollector
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.db.session import async_session
 from src.pipeline.ingest import run_collector
@@ -25,11 +22,8 @@ COLLECTORS = {
     "sec_edgar_bulk": SECEdgarBulkCollector,
     "yc_directory": YCDirectoryCollector,
     "rss_funding": RSSFundingCollector,
-    "techstars": TechstarsCollector,
     "500_global": FiveHundredGlobalCollector,
     "google_news": GoogleNewsFundingCollector,
-    "openvc": OpenVCCollector,
-    "pitchbook_news": PitchBookNewsCollector,
 }
 
 

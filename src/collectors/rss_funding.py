@@ -82,6 +82,18 @@ RSS_FEEDS = [
         "name": "EU-Startups",
         "url": "https://www.eu-startups.com/feed/",
     },
+    {
+        "name": "TechCrunch Venture",
+        "url": "https://techcrunch.com/category/venture/feed/",
+    },
+    {
+        "name": "TechFundingNews",
+        "url": "https://techfundingnews.com/feed/",
+    },
+    {
+        "name": "Sifted",
+        "url": "https://sifted.eu/feed",
+    },
 ]
 
 

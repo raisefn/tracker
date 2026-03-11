@@ -254,6 +254,9 @@ async def _ingest_founders(
         ))
 
 
+BATCH_COMMIT_SIZE = 100
+
+
 async def run_collector(session: AsyncSession, collector: BaseCollector) -> CollectorRun:
     """Run a collector and ingest all results."""
     run = CollectorRun(collector=collector.source_type())
@@ -268,7 +271,7 @@ async def run_collector(session: AsyncSession, collector: BaseCollector) -> Coll
         flagged_count = 0
         new_round_events: list[dict] = []
 
-        for raw in raw_rounds:
+        for i, raw in enumerate(raw_rounds):
             try:
                 # Use savepoint so one failed round doesn't kill the batch
                 async with session.begin_nested():
@@ -280,17 +283,32 @@ async def run_collector(session: AsyncSession, collector: BaseCollector) -> Coll
                 flagged_count += 1
                 logger.warning(f"Failed to ingest round {raw.project_name}: {e}")
 
+            # Commit in batches to avoid losing progress on large collections
+            if (i + 1) % BATCH_COMMIT_SIZE == 0:
+                run.rounds_new = new_count
+                run.rounds_flagged = flagged_count
+                await session.commit()
+                logger.info(
+                    f"  batch commit {i + 1}/{len(raw_rounds)} — "
+                    f"new={new_count} flagged={flagged_count}"
+                )
+                # Re-attach the run object after commit
+                session.add(run)
+
         run.rounds_new = new_count
         run.rounds_flagged = flagged_count
         run.completed_at = datetime.now()
         await session.commit()
 
         # Invalidate cached API responses after new data
-        r = get_redis_client()
         try:
-            await invalidate_all(r)
-        finally:
-            await r.aclose()
+            r = get_redis_client()
+            try:
+                await invalidate_all(r)
+            finally:
+                await r.aclose()
+        except Exception as e:
+            logger.debug(f"Redis cache invalidation skipped: {e}")
 
         # Dispatch webhook events for new rounds
         for event_data in new_round_events:
