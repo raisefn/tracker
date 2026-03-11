@@ -41,7 +41,9 @@ SEARCH_QUERIES = [
     '"announces" "$" "million" "funding"',
     # Later stages
     '"Series C" OR "Series D" "raises" "$" "million"',
+    '"Series E" OR "Series F" "raises" "$" "million"',
     '"growth round" "$" "million"',
+    '"extension round" "$" "million"',
     # Sector-specific
     '"fintech" "raises" "$" "million"',
     '"healthtech" OR "health tech" "raises" "$" "million"',
@@ -49,13 +51,40 @@ SEARCH_QUERIES = [
     '"climate tech" OR "cleantech" "raises" "$" "million"',
     '"biotech" "raises" "$" "million"',
     '"SaaS" "raises" "$" "million"',
+    '"cybersecurity" "raises" "$" "million"',
+    '"edtech" OR "education technology" "raises" "$" "million"',
+    '"proptech" OR "real estate tech" "raises" "$" "million"',
+    '"insurtech" "raises" "$" "million"',
+    '"agtech" OR "agritech" "raises" "$" "million"',
+    '"robotics" "raises" "$" "million"',
+    '"quantum computing" "raises" "$" "million"',
+    '"defense tech" OR "defence tech" "raises" "$" "million"',
+    '"space tech" OR "spacetech" "raises" "$" "million"',
+    # Crypto / Web3 / DeFi
+    '"crypto" "raises" "$" "million"',
+    '"blockchain" "raises" "$" "million"',
+    '"DeFi" "raises" "$" "million"',
+    '"Web3" "raises" "$" "million"',
+    '"NFT" OR "digital assets" "raises" "$" "million"',
+    '"token" "funding round" "$" "million"',
     # Regional
     '"startup" "raises" "million" India funding',
     '"startup" "raises" "million" Europe funding',
     '"startup" "raises" "million" Africa funding',
     '"startup" "raises" "million" Latin America funding',
+    '"startup" "raises" "million" Southeast Asia funding',
+    '"startup" "raises" "million" Middle East funding',
+    '"startup" "raises" "million" Japan OR Korea funding',
+    '"startup" "raises" "million" Australia funding',
+    '"startup" "raises" "million" Canada funding',
+    '"startup" "raises" "million" Israel funding',
     # Bigger rounds
     '"raises" "$" "billion"',
+    # Specific investor patterns
+    '"Andreessen Horowitz" OR "a16z" "leads" "$" "million"',
+    '"Sequoia" "leads" "$" "million"',
+    '"Y Combinator" "backed" "raises" "$"',
+    '"Accel" OR "Lightspeed" "leads" "$" "million"',
 ]
 
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"

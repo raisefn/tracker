@@ -21,6 +21,7 @@ from src.collectors.etherscan_enricher import EtherscanEnricher
 from src.collectors.formd_promoters import FormDPromoterEnricher
 from src.collectors.github_enricher import GitHubEnricher
 from src.collectors.google_news import GoogleNewsFundingCollector
+from src.collectors.hackernews import HackerNewsFundingCollector
 from src.collectors.hackernews_enricher import HackerNewsEnricher
 from src.collectors.npm_enricher import NpmEnricher
 from src.collectors.defillama import DefiLlamaCollector
@@ -89,7 +90,8 @@ async def realtime_tick() -> None:
 async def hourly_tick() -> None:
     """Run every hour: SEC EDGAR, HackerNews, Reddit."""
     await run_collector_job("sec_edgar_recent", SECEdgarCollector, days_back=1)
-    await run_enricher_job("hackernews", HackerNewsEnricher)
+    await run_collector_job("hackernews", HackerNewsFundingCollector, days=1)
+    await run_enricher_job("hackernews_enrich", HackerNewsEnricher)
     await run_enricher_job("reddit", RedditEnricher)
 
 

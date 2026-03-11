@@ -193,6 +193,67 @@ RSS_FEEDS = [
         "name": "Disrupt Africa",
         "url": "https://disrupt-africa.com/feed/",
     },
+    # --- Additional high-quality sources ---
+    {
+        "name": "Crunchbase News Daily",
+        "url": "https://news.crunchbase.com/feed/",
+    },
+    {
+        "name": "PEHub",
+        "url": "https://www.pehub.com/feed/",
+    },
+    {
+        "name": "GeekWire",
+        "url": "https://www.geekwire.com/feed/",
+    },
+    {
+        "name": "TechStartups",
+        "url": "https://techstartups.com/feed/",
+    },
+    {
+        "name": "BetaKit",
+        "url": "https://betakit.com/feed/",
+    },
+    {
+        "name": "FinanceMagnates",
+        "url": "https://www.financemagnates.com/feed/",
+    },
+    {
+        "name": "The Real Deal",
+        "url": "https://therealdeal.com/feed/",
+    },
+    {
+        "name": "Pitchfork Economics",
+        "url": "https://pitchbook.com/news/feed",
+    },
+    {
+        "name": "PYMNTS",
+        "url": "https://www.pymnts.com/feed/",
+    },
+    {
+        "name": "CB Insights",
+        "url": "https://www.cbinsights.com/research/feed/",
+    },
+    {
+        "name": "VentureBeat AI",
+        "url": "https://venturebeat.com/category/ai/feed/",
+    },
+    {
+        "name": "Benzinga",
+        "url": "https://www.benzinga.com/feed",
+    },
+    {
+        "name": "Silicon Angle",
+        "url": "https://siliconangle.com/feed/",
+    },
+    {
+        "name": "Startup Daily Australia",
+        "url": "https://www.startupdaily.net/feed/",
+    },
+    {
+        "name": "TNW",
+        "url": "https://thenextweb.com/feed",
+    },
 ]
 
 
