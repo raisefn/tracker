@@ -147,6 +147,19 @@ async def scheduler_loop() -> None:
     """Main scheduler loop. Runs indefinitely."""
     logger.info("[scheduler] Starting scheduler loop")
 
+    # Run daily + weekly enrichers on startup so deploys don't wait 24h
+    logger.info("[scheduler] Running daily tick on startup")
+    try:
+        await daily_tick()
+    except Exception as e:
+        logger.error(f"[scheduler] startup daily_tick error: {e}")
+
+    logger.info("[scheduler] Running weekly tick on startup")
+    try:
+        await weekly_tick()
+    except Exception as e:
+        logger.error(f"[scheduler] startup weekly_tick error: {e}")
+
     tick_count = 0
 
     while True:
