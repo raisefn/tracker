@@ -86,10 +86,13 @@ async def run_enricher(session: AsyncSession, enricher: BaseEnricher) -> Enrichm
     await session.commit()
 
     # Invalidate cached API responses after enrichment
-    r = get_redis_client()
     try:
-        await invalidate_all(r)
-    finally:
-        await r.aclose()
+        r = get_redis_client()
+        try:
+            await invalidate_all(r)
+        finally:
+            await r.aclose()
+    except Exception as e:
+        logger.debug(f"Redis cache invalidation skipped: {e}")
 
     return result
