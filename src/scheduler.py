@@ -16,6 +16,7 @@ from datetime import datetime
 from src.collectors.accelerator_500 import FiveHundredGlobalCollector
 from src.collectors.coingecko_community_enricher import CoinGeckoCommunityEnricher
 from src.collectors.coingecko_enricher import CoinGeckoEnricher
+from src.collectors.coingecko_linker import CoinGeckoLinker
 from src.collectors.defillama_enricher import DefiLlamaProtocolEnricher
 from src.collectors.etherscan_enricher import EtherscanEnricher
 from src.collectors.formd_promoters import FormDPromoterEnricher
@@ -34,6 +35,8 @@ from src.collectors.sec_13f import SEC13FEnricher
 from src.collectors.sec_edgar import SECEdgarBulkCollector, SECEdgarCollector
 from src.collectors.sec_form_adv import SECFormADVEnricher
 from src.collectors.snapshot_enricher import SnapshotEnricher
+from src.collectors.snapshot_linker import SnapshotLinker
+from src.collectors.website_linker import WebsiteLinker
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.db.session import async_session
@@ -96,9 +99,15 @@ async def hourly_tick() -> None:
 
 
 async def daily_tick() -> None:
-    """Run once per day: directories, raises, dev metrics, token metrics, governance."""
+    """Run once per day: linkers first, then directories, metrics, governance."""
+    # Phase 1: Linkers — discover external IDs for projects
+    await run_enricher_job("website_linker", WebsiteLinker)
+    await run_enricher_job("coingecko_linker", CoinGeckoLinker)
+    await run_enricher_job("snapshot_linker", SnapshotLinker)
+    # Phase 2: Collectors
     await run_collector_job("defillama", DefiLlamaCollector)
     await run_collector_job("yc_directory", YCDirectoryCollector)
+    # Phase 3: Enrichers (depend on IDs discovered by linkers)
     await run_enricher_job("github", GitHubEnricher)
     await run_enricher_job("npm", NpmEnricher)
     await run_enricher_job("pypi", PyPIEnricher)
