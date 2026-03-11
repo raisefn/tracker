@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Google News RSS search queries designed to catch funding announcements
 SEARCH_QUERIES = [
+    # Core funding patterns
     '"raises" "$" "million" startup funding',
     '"Series A" OR "Series B" OR "seed round" "raises" "$"',
     '"led by" "$" "million" funding round',
@@ -38,6 +39,23 @@ SEARCH_QUERIES = [
     '"seed funding" "$" "million" startup',
     '"closes" "$" "million" "round"',
     '"announces" "$" "million" "funding"',
+    # Later stages
+    '"Series C" OR "Series D" "raises" "$" "million"',
+    '"growth round" "$" "million"',
+    # Sector-specific
+    '"fintech" "raises" "$" "million"',
+    '"healthtech" OR "health tech" "raises" "$" "million"',
+    '"AI startup" "raises" "$" "million"',
+    '"climate tech" OR "cleantech" "raises" "$" "million"',
+    '"biotech" "raises" "$" "million"',
+    '"SaaS" "raises" "$" "million"',
+    # Regional
+    '"startup" "raises" "million" India funding',
+    '"startup" "raises" "million" Europe funding',
+    '"startup" "raises" "million" Africa funding',
+    '"startup" "raises" "million" Latin America funding',
+    # Bigger rounds
+    '"raises" "$" "billion"',
 ]
 
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"

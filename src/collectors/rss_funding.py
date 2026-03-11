@@ -94,6 +94,105 @@ RSS_FEEDS = [
         "name": "Sifted",
         "url": "https://sifted.eu/feed",
     },
+    # --- Additional general startup ---
+    {
+        "name": "Business Insider Tech",
+        "url": "https://www.businessinsider.com/sai/rss",
+    },
+    {
+        "name": "Wired Business",
+        "url": "https://www.wired.com/feed/category/business/latest/rss",
+    },
+    {
+        "name": "The Information",
+        "url": "https://www.theinformation.com/feed",
+    },
+    {
+        "name": "Finsmes",
+        "url": "https://www.finsmes.com/feed",
+    },
+    {
+        "name": "AlleyWatch",
+        "url": "https://www.alleywatch.com/feed/",
+    },
+    {
+        "name": "ArcticStartup",
+        "url": "https://arcticstartup.com/feed/",
+    },
+    {
+        "name": "Silicon Republic",
+        "url": "https://www.siliconrepublic.com/feed",
+    },
+    {
+        "name": "UKTN",
+        "url": "https://www.uktech.news/feed",
+    },
+    {
+        "name": "Tech.eu",
+        "url": "https://tech.eu/feed/",
+    },
+    {
+        "name": "Pulse 2.0",
+        "url": "https://pulse2.com/feed/",
+    },
+    {
+        "name": "FinSMEs Daily",
+        "url": "https://www.finsmes.com/category/daily-funding/feed",
+    },
+    # --- Fintech-specific ---
+    {
+        "name": "Finextra",
+        "url": "https://www.finextra.com/rss/headlines.aspx",
+    },
+    {
+        "name": "Finovate",
+        "url": "https://finovate.com/feed/",
+    },
+    # --- Biotech/healthtech ---
+    {
+        "name": "FierceBiotech",
+        "url": "https://www.fiercebiotech.com/rss/xml",
+    },
+    {
+        "name": "MobiHealthNews",
+        "url": "https://www.mobihealthnews.com/feed",
+    },
+    # --- Climate/cleantech ---
+    {
+        "name": "CleanTechnica",
+        "url": "https://cleantechnica.com/feed/",
+    },
+    # --- India/Asia ---
+    {
+        "name": "Inc42",
+        "url": "https://inc42.com/feed/",
+    },
+    {
+        "name": "YourStory",
+        "url": "https://yourstory.com/feed",
+    },
+    {
+        "name": "e27",
+        "url": "https://e27.co/feed/",
+    },
+    {
+        "name": "TechInAsia",
+        "url": "https://www.techinasia.com/feed",
+    },
+    # --- Latin America ---
+    {
+        "name": "Contxto",
+        "url": "https://contxto.com/feed/",
+    },
+    # --- Africa ---
+    {
+        "name": "TechCabal",
+        "url": "https://techcabal.com/feed/",
+    },
+    {
+        "name": "Disrupt Africa",
+        "url": "https://disrupt-africa.com/feed/",
+    },
 ]
 
 
