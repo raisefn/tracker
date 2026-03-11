@@ -282,6 +282,12 @@ async def run_collector(session: AsyncSession, collector: BaseCollector) -> Coll
             except Exception as e:
                 flagged_count += 1
                 logger.warning(f"Failed to ingest round {raw.project_name}: {e}")
+                # Recover session from connection errors (invalid transaction state)
+                try:
+                    await session.rollback()
+                    session.add(run)
+                except Exception:
+                    pass
 
             # Commit in batches to avoid losing progress on large collections
             if (i + 1) % BATCH_COMMIT_SIZE == 0:
