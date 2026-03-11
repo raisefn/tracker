@@ -12,6 +12,7 @@ import sys
 
 from src.collectors.coingecko_community_enricher import CoinGeckoCommunityEnricher
 from src.collectors.coingecko_enricher import CoinGeckoEnricher
+from src.collectors.coingecko_linker import CoinGeckoLinker
 from src.collectors.defillama_enricher import DefiLlamaProtocolEnricher
 from src.collectors.etherscan_enricher import EtherscanEnricher
 from src.collectors.formd_promoters import FormDPromoterEnricher
@@ -25,6 +26,8 @@ from src.collectors.reddit_enricher import RedditEnricher
 from src.collectors.sec_13f import SEC13FEnricher
 from src.collectors.sec_form_adv import SECFormADVEnricher
 from src.collectors.snapshot_enricher import SnapshotEnricher
+from src.collectors.snapshot_linker import SnapshotLinker
+from src.collectors.website_linker import WebsiteLinker
 from src.collectors.wellfound import WellfoundEnricher
 from src.db.session import async_session
 from src.pipeline.enrich import run_enricher
@@ -33,6 +36,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 ENRICHERS = {
+    # Linkers (run first — discover external IDs)
+    "website_linker": WebsiteLinker,
+    "coingecko_linker": CoinGeckoLinker,
+    "snapshot_linker": SnapshotLinker,
+    # Enrichers (use discovered IDs)
     "defillama_protocols": DefiLlamaProtocolEnricher,
     "coingecko": CoinGeckoEnricher,
     "github": GitHubEnricher,

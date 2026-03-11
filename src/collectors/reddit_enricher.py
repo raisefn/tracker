@@ -21,9 +21,26 @@ class RedditEnricher(BaseEnricher):
     async def enrich(self, session: AsyncSession) -> EnrichmentResult:
         result = EnrichmentResult(source=self.source_name())
 
-        projects = (
-            await session.execute(select(Project))
+        # Only enrich projects that already have a subreddit identified,
+        # or search a limited batch of unenriched projects per run
+        from sqlalchemy import or_
+
+        known = (
+            await session.execute(
+                select(Project).where(Project.reddit_subreddit.isnot(None))
+            )
         ).scalars().all()
+
+        # Search a small batch of projects without subreddit (discovery)
+        unknown = (
+            await session.execute(
+                select(Project)
+                .where(Project.reddit_subreddit.is_(None))
+                .limit(200)
+            )
+        ).scalars().all()
+
+        projects = known + unknown
 
         if not projects:
             return result

@@ -46,39 +46,51 @@ from src.pipeline.ingest import run_collector
 logger = logging.getLogger(__name__)
 
 
+# Per-job timeout: 30 minutes default, prevents one slow job from blocking the scheduler
+JOB_TIMEOUT = 30 * 60
+
+
 async def run_collector_job(name: str, collector_cls, **kwargs) -> None:
-    """Run a single collector job with error handling."""
+    """Run a single collector job with error handling and timeout."""
     logger.info(f"[scheduler] Starting collector: {name}")
     start = datetime.now()
     try:
-        async with async_session() as session:
-            collector = collector_cls(**kwargs)
-            run = await run_collector(session, collector)
-            elapsed = (datetime.now() - start).total_seconds()
-            logger.info(
-                f"[scheduler] {name} done in {elapsed:.1f}s — "
-                f"fetched={run.rounds_fetched} new={run.rounds_new} "
-                f"flagged={run.rounds_flagged}"
-            )
+        async with asyncio.timeout(JOB_TIMEOUT):
+            async with async_session() as session:
+                collector = collector_cls(**kwargs)
+                run = await run_collector(session, collector)
+                elapsed = (datetime.now() - start).total_seconds()
+                logger.info(
+                    f"[scheduler] {name} done in {elapsed:.1f}s — "
+                    f"fetched={run.rounds_fetched} new={run.rounds_new} "
+                    f"flagged={run.rounds_flagged}"
+                )
+    except TimeoutError:
+        elapsed = (datetime.now() - start).total_seconds()
+        logger.error(f"[scheduler] {name} timed out after {elapsed:.1f}s")
     except Exception as e:
         elapsed = (datetime.now() - start).total_seconds()
         logger.error(f"[scheduler] {name} failed after {elapsed:.1f}s: {e}")
 
 
 async def run_enricher_job(name: str, enricher_cls) -> None:
-    """Run a single enricher job with error handling."""
+    """Run a single enricher job with error handling and timeout."""
     logger.info(f"[scheduler] Starting enricher: {name}")
     start = datetime.now()
     try:
-        async with async_session() as session:
-            enricher = enricher_cls()
-            result = await run_enricher(session, enricher)
-            elapsed = (datetime.now() - start).total_seconds()
-            logger.info(
-                f"[scheduler] {name} done in {elapsed:.1f}s — "
-                f"updated={result.records_updated} skipped={result.records_skipped} "
-                f"errors={len(result.errors)}"
-            )
+        async with asyncio.timeout(JOB_TIMEOUT):
+            async with async_session() as session:
+                enricher = enricher_cls()
+                result = await run_enricher(session, enricher)
+                elapsed = (datetime.now() - start).total_seconds()
+                logger.info(
+                    f"[scheduler] {name} done in {elapsed:.1f}s — "
+                    f"updated={result.records_updated} skipped={result.records_skipped} "
+                    f"errors={len(result.errors)}"
+                )
+    except TimeoutError:
+        elapsed = (datetime.now() - start).total_seconds()
+        logger.error(f"[scheduler] {name} timed out after {elapsed:.1f}s")
     except Exception as e:
         elapsed = (datetime.now() - start).total_seconds()
         logger.error(f"[scheduler] {name} failed after {elapsed:.1f}s: {e}")
