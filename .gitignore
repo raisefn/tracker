@@ -28,3 +28,6 @@ venv/
 
 .DS_Store
 Thumbs.db
+
+# Brain (closed-source, separate repo) — never commit here
+brain/
