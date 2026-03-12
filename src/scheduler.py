@@ -15,7 +15,9 @@ import logging
 from datetime import datetime
 
 from src.collectors.accelerator_500 import FiveHundredGlobalCollector
+from src.collectors.accelerator_directory import AcceleratorDirectoryCollector
 from src.collectors.angel_group_scraper import AngelGroupScraper
+from src.collectors.angel_investor_directory import AngelInvestorDirectory
 from src.collectors.angellist_enricher import AngelListInvestorEnricher
 from src.collectors.coingecko_community_enricher import CoinGeckoCommunityEnricher
 from src.collectors.coingecko_enricher import CoinGeckoEnricher
@@ -50,6 +52,9 @@ from src.collectors.vc_website_enricher import VCWebsiteEnricher
 from src.collectors.web_search_enricher import WebSearchEnricher
 from src.collectors.website_linker import WebsiteLinker
 from src.collectors.founder_enricher import FounderEnricher
+from src.collectors.openvc import OpenVCCollector
+from src.collectors.preseed_fund_directory import PreSeedFundDirectory
+from src.collectors.techstars import TechstarsCollector
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.db.session import async_session
@@ -157,6 +162,8 @@ async def daily_tick() -> None:
 async def weekly_tick() -> None:
     """Run once per week: accelerators, SEC intelligence."""
     await run_collector_job("500_global", FiveHundredGlobalCollector)
+    await run_collector_job("techstars", TechstarsCollector)
+    await run_collector_job("openvc", OpenVCCollector)
     await run_enricher_job("sec_form_adv", SECFormADVEnricher)
     await run_enricher_job("sec_13f", SEC13FEnricher)
     await run_enricher_job("propublica_990", ProPublica990Enricher)
@@ -165,6 +172,9 @@ async def weekly_tick() -> None:
     await run_enricher_job("angellist_investors", AngelListInvestorEnricher)
     await run_enricher_job("crunchbase", CrunchbaseEnricher)
     await run_enricher_job("angel_groups", AngelGroupScraper)
+    await run_enricher_job("angel_investors", AngelInvestorDirectory)
+    await run_enricher_job("preseed_funds", PreSeedFundDirectory)
+    await run_collector_job("accelerator_directory", AcceleratorDirectoryCollector)
     await run_enricher_job("vc_website", VCWebsiteEnricher)
     await run_collector_job("sbir", SBIRCollector)
     await run_collector_job("cryptorank", CryptoRankCollector)
