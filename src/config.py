@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     coingecko_api_key: str = ""
     github_token: str = ""
     etherscan_api_key: str = ""
-    cors_origins: list[str] = ["*"]
+    cors_origins: list[str] = ["https://raisefn.com", "https://www.raisefn.com", "http://localhost:3000"]
 
     @model_validator(mode="before")
     @classmethod
