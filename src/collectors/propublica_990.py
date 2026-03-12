@@ -13,12 +13,9 @@ import logging
 from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
-from src.models import Investor
-from src.pipeline.normalizer import make_slug
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, find_investor_match, stamp_freshness
 
 logger = logging.getLogger(__name__)
 
@@ -187,31 +184,18 @@ class ProPublica990Enricher(BaseEnricher):
         return False
 
     async def _process_foundation(self, session: AsyncSession, org: dict) -> bool:
-        """Process a single foundation — match or create investor."""
+        """Process a single foundation — enrich existing investors only."""
         name = (org.get("name", "") or "").strip()
         if not name or len(name) < 3:
             return False
 
         ein = str(org.get("ein", "")).strip()
-        slug = make_slug(name)
 
-        # Try to match by EIN first, then slug
-        investor = None
-        if ein:
-            result = await session.execute(
-                select(Investor).where(Investor.ein == ein)
-            )
-            investor = result.scalar_one_or_none()
+        investor = await find_investor_match(session, name, ein=ein)
 
-        if not investor:
-            result = await session.execute(
-                select(Investor).where(Investor.slug == slug)
-            )
-            investor = result.scalar_one_or_none()
-
+        # Enrichment-only: skip if no existing investor matched
         if investor is None:
-            investor = Investor(name=name, slug=slug)
-            session.add(investor)
+            return False
 
         # Update foundation fields
         if ein:

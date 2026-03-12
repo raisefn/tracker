@@ -14,12 +14,9 @@ import zipfile
 from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
-from src.models import Investor
-from src.pipeline.normalizer import make_slug
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, find_investor_match, stamp_freshness
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +171,7 @@ class SEC13FEnricher(BaseEnricher):
             return filers
 
     async def _process_filer(self, session: AsyncSession, cik: str, data: dict) -> bool:
-        """Process a single 13F filer — match or create investor."""
+        """Process a single 13F filer — enrich existing investors only."""
         name = data.get("name", "").strip()
         if not name or len(name) < 3:
             return False
@@ -184,24 +181,11 @@ class SEC13FEnricher(BaseEnricher):
         if total_value < 1_000_000:  # Less than $1M portfolio
             return False
 
-        slug = make_slug(name)
+        investor = await find_investor_match(session, name, sec_cik=cik)
 
-        # Try to match by CIK first, then by slug
-        investor = None
-        result = await session.execute(
-            select(Investor).where(Investor.sec_cik == cik)
-        )
-        investor = result.scalar_one_or_none()
-
-        if not investor:
-            result = await session.execute(
-                select(Investor).where(Investor.slug == slug)
-            )
-            investor = result.scalar_one_or_none()
-
+        # Enrichment-only: skip if no existing investor matched
         if investor is None:
-            investor = Investor(name=name, slug=slug)
-            session.add(investor)
+            return False
 
         # Update 13F fields
         investor.sec_cik = cik

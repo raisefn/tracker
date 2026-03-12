@@ -6,7 +6,7 @@ Runs collectors and enrichers at different frequencies:
 - Daily: GitHub, npm/PyPI, Product Hunt, YC directory, Form D promoters,
          DefiLlama, CoinGecko chain, Snapshot, Etherscan
 - Weekly: Accelerator scrapes, SEC investor intelligence, 990s,
-          SEC EDGAR bulk, OpenVC, Wellfound, PitchBook News
+          SEC EDGAR bulk, OpenVC, Wellfound, AngelList investors, PitchBook News
 """
 
 import asyncio
@@ -24,6 +24,7 @@ from src.collectors.github_enricher import GitHubEnricher
 from src.collectors.google_news import GoogleNewsFundingCollector
 from src.collectors.hackernews import HackerNewsFundingCollector
 from src.collectors.hackernews_enricher import HackerNewsEnricher
+from src.collectors.investor_profile_aggregator import InvestorProfileAggregator
 from src.collectors.npm_enricher import NpmEnricher
 from src.collectors.defillama import DefiLlamaCollector
 from src.collectors.producthunt_enricher import ProductHuntEnricher
@@ -37,6 +38,8 @@ from src.collectors.sec_form_adv import SECFormADVEnricher
 from src.collectors.snapshot_enricher import SnapshotEnricher
 from src.collectors.snapshot_linker import SnapshotLinker
 from src.collectors.website_linker import WebsiteLinker
+from src.collectors.web_search_enricher import WebSearchEnricher
+from src.collectors.angellist_enricher import AngelListInvestorEnricher
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.db.session import async_session
@@ -131,6 +134,10 @@ async def daily_tick() -> None:
     await run_enricher_job("coingecko_community", CoinGeckoCommunityEnricher)
     await run_enricher_job("etherscan", EtherscanEnricher)
     await run_enricher_job("snapshot", SnapshotEnricher)
+    # Web search enrichment for investor profiles (websites, social, descriptions)
+    await run_enricher_job("web_search", WebSearchEnricher)
+    # Investor profile aggregation (no API calls, purely DB-driven)
+    await run_enricher_job("investor_profile_aggregator", InvestorProfileAggregator)
 
 
 async def weekly_tick() -> None:
@@ -141,6 +148,7 @@ async def weekly_tick() -> None:
     await run_enricher_job("propublica_990", ProPublica990Enricher)
     await run_collector_job("sec_edgar_bulk", SECEdgarBulkCollector)
     await run_enricher_job("wellfound", WellfoundEnricher)
+    await run_enricher_job("angellist_investors", AngelListInvestorEnricher)
 
 
 async def scheduler_loop() -> None:

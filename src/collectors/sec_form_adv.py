@@ -16,12 +16,9 @@ import zipfile
 from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
-from src.models import Investor
-from src.pipeline.normalizer import make_slug
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, find_investor_match, stamp_freshness
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +170,7 @@ class SECFormADVEnricher(BaseEnricher):
             return advisers
 
     async def _process_adviser(self, session: AsyncSession, row: dict) -> bool:
-        """Process a single adviser record — match or create investor."""
+        """Process a single adviser record — enrich existing investors only."""
         name = (row.get("FIRMNAME", "") or "").strip()
         if not name or len(name) < 3:
             return False
@@ -186,25 +183,12 @@ class SECFormADVEnricher(BaseEnricher):
             return False
 
         crd = (row.get("CRDNUMBER", row.get("CRD", "")) or "").strip()
-        slug = make_slug(name)
 
-        # Try to match by CRD first, then by slug
-        investor = None
-        if crd:
-            result = await session.execute(
-                select(Investor).where(Investor.sec_crd == crd)
-            )
-            investor = result.scalar_one_or_none()
+        investor = await find_investor_match(session, name, sec_crd=crd)
 
-        if not investor:
-            result = await session.execute(
-                select(Investor).where(Investor.slug == slug)
-            )
-            investor = result.scalar_one_or_none()
-
+        # Enrichment-only: skip if no existing investor matched
         if investor is None:
-            investor = Investor(name=name, slug=slug)
-            session.add(investor)
+            return False
 
         # Update fields
         if crd:

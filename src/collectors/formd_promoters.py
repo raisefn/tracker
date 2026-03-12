@@ -16,10 +16,9 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, find_investor_match, stamp_freshness
 from src.models import Investor
 from src.pipeline.normalizer import make_slug
 
@@ -214,15 +213,11 @@ class FormDPromoterEnricher(BaseEnricher):
         if not name or len(name) < 3:
             return False
 
-        slug = make_slug(name)
-
-        # Check if investor exists
-        result = await session.execute(
-            select(Investor).where(Investor.slug == slug)
-        )
-        investor = result.scalar_one_or_none()
+        investor = await find_investor_match(session, name)
 
         if investor is None:
+            # FormD promoters are genuine angel discoveries — create new record
+            slug = make_slug(name)
             investor = Investor(name=name, slug=slug)
             session.add(investor)
 
