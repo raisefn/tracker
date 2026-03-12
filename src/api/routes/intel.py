@@ -6,6 +6,8 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import APIKeyHeader
+from typing import Literal
+
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,12 +49,9 @@ async def require_contributor(
 
 class IntelSubmission(BaseModel):
     investor_name: str = Field(..., min_length=2, description="Investor name")
-    intel_type: str = Field(
-        default="meeting",
-        description="Type: meeting, hearsay, public_signal, portfolio_move",
-    )
+    intel_type: Literal["meeting", "hearsay", "public_signal", "portfolio_move"] = "meeting"
     raw_text: str = Field(..., min_length=10, description="Freeform intel text")
-    confidence: str = Field(default="firsthand", description="firsthand, secondhand, or rumor")
+    confidence: Literal["firsthand", "secondhand", "rumor"] = "firsthand"
     observed_at: date | None = Field(default=None, description="When the intel was observed")
 
     # Optional structured fields — can also be extracted from raw_text later
@@ -85,15 +84,6 @@ async def submit_intel(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit investor intel. Authenticated via X-Intel-Token header."""
-    # Validate intel_type
-    valid_types = {"meeting", "hearsay", "public_signal", "portfolio_move"}
-    if body.intel_type not in valid_types:
-        raise HTTPException(status_code=422, detail=f"intel_type must be one of: {', '.join(valid_types)}")
-
-    valid_confidence = {"firsthand", "secondhand", "rumor"}
-    if body.confidence not in valid_confidence:
-        raise HTTPException(status_code=422, detail=f"confidence must be one of: {', '.join(valid_confidence)}")
-
     investor_slug = make_slug(body.investor_name)
 
     # Auto-approve for admin/trusted, queue for contributors

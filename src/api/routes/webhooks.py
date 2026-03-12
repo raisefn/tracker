@@ -1,7 +1,9 @@
 """Webhook management endpoints."""
 
+import ipaddress
 import secrets
 import uuid
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, HttpUrl
@@ -14,6 +16,35 @@ from src.models.webhook import Webhook
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 VALID_EVENTS = ["round.created", "round.updated"]
+
+# Blocked IP ranges (SSRF protection)
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local / cloud metadata
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+]
+
+
+def _validate_webhook_url(url: str) -> None:
+    """Block internal/private IPs to prevent SSRF."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("https",):
+        raise HTTPException(400, "Webhook URL must use HTTPS")
+    hostname = parsed.hostname
+    if not hostname:
+        raise HTTPException(400, "Invalid webhook URL")
+    try:
+        addr = ipaddress.ip_address(hostname)
+        if any(addr in net for net in _BLOCKED_NETWORKS):
+            raise HTTPException(400, "Webhook URL must not point to a private/internal address")
+    except ValueError:
+        # hostname is a domain name, not an IP — allowed
+        # (DNS rebinding is a separate concern, but this blocks the obvious cases)
+        pass
 
 
 class WebhookCreate(BaseModel):
@@ -41,6 +72,8 @@ async def create_webhook(
     body: WebhookCreate,
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_webhook_url(str(body.url))
+
     for event in body.events:
         if event not in VALID_EVENTS:
             raise HTTPException(400, f"Invalid event: {event}. Valid: {VALID_EVENTS}")

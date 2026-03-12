@@ -55,23 +55,23 @@ async def dispatch_event(
             "X-Webhook-Event": event,
         }
 
-        for attempt in range(MAX_RETRIES):
-            try:
-                async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+            for attempt in range(MAX_RETRIES):
+                try:
                     resp = await client.post(
                         wh.url, content=payload_bytes, headers=headers
                     )
-                if resp.status_code < 400:
-                    delivered += 1
-                    break
-                logger.warning(
-                    "Webhook %s returned %d (attempt %d/%d)",
-                    wh.url, resp.status_code, attempt + 1, MAX_RETRIES,
-                )
-            except Exception as e:
-                logger.warning(
-                    "Webhook %s failed (attempt %d/%d): %s",
-                    wh.url, attempt + 1, MAX_RETRIES, e,
-                )
+                    if resp.status_code < 400:
+                        delivered += 1
+                        break
+                    logger.warning(
+                        "Webhook %s returned %d (attempt %d/%d)",
+                        wh.url, resp.status_code, attempt + 1, MAX_RETRIES,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Webhook %s failed (attempt %d/%d): %s",
+                        wh.url, attempt + 1, MAX_RETRIES, e,
+                    )
 
     return delivered
