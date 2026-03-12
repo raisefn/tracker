@@ -168,11 +168,17 @@ class NSFAwardsCollector(BaseCollector):
 
         if any(w in text for w in ["blockchain", "crypto", "defi", "web3"]):
             return "blockchain"
-        if any(w in text for w in ["machine learning", "artificial intelligence", "neural network", "deep learning", "nlp", "computer vision"]):
+        _ai = ["machine learning", "artificial intelligence", "neural network",
+               "deep learning", "nlp", "computer vision"]
+        if any(w in text for w in _ai):
             return "ai"
-        if any(w in text for w in ["biotech", "therapeutic", "drug", "clinical", "pharmaceutical", "genomic"]):
+        _health = ["biotech", "therapeutic", "drug", "clinical",
+                    "pharmaceutical", "genomic"]
+        if any(w in text for w in _health):
             return "healthcare"
-        if any(w in text for w in ["solar", "battery", "renewable", "clean energy", "carbon capture"]):
+        _energy = ["solar", "battery", "renewable", "clean energy",
+                    "carbon capture"]
+        if any(w in text for w in _energy):
             return "energy"
         if any(w in text for w in ["quantum", "photon", "semiconductor"]):
             return "deeptech"

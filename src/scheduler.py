@@ -21,6 +21,7 @@ from src.collectors.coingecko_community_enricher import CoinGeckoCommunityEnrich
 from src.collectors.coingecko_enricher import CoinGeckoEnricher
 from src.collectors.coingecko_linker import CoinGeckoLinker
 from src.collectors.crunchbase_enricher import CrunchbaseEnricher
+from src.collectors.cryptorank import CryptoRankCollector
 from src.collectors.defillama import DefiLlamaCollector
 from src.collectors.defillama_enricher import DefiLlamaProtocolEnricher
 from src.collectors.etherscan_enricher import EtherscanEnricher
@@ -30,12 +31,15 @@ from src.collectors.google_news import GoogleNewsFundingCollector
 from src.collectors.hackernews import HackerNewsFundingCollector
 from src.collectors.hackernews_enricher import HackerNewsEnricher
 from src.collectors.investor_profile_aggregator import InvestorProfileAggregator
+from src.collectors.nih_reporter import NIHReporterCollector
 from src.collectors.npm_enricher import NpmEnricher
+from src.collectors.nsf_awards import NSFAwardsCollector
 from src.collectors.producthunt_enricher import ProductHuntEnricher
 from src.collectors.propublica_990 import ProPublica990Enricher
 from src.collectors.pypi_enricher import PyPIEnricher
 from src.collectors.reddit_enricher import RedditEnricher
 from src.collectors.rss_funding import RSSFundingCollector
+from src.collectors.sbir import SBIRCollector
 from src.collectors.sec_13f import SEC13FEnricher
 from src.collectors.sec_edgar import SECEdgarBulkCollector, SECEdgarCollector
 from src.collectors.sec_form_adv import SECFormADVEnricher
@@ -47,10 +51,6 @@ from src.collectors.web_search_enricher import WebSearchEnricher
 from src.collectors.website_linker import WebsiteLinker
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
-from src.collectors.sbir import SBIRCollector
-from src.collectors.cryptorank import CryptoRankCollector
-from src.collectors.nsf_awards import NSFAwardsCollector
-from src.collectors.nih_reporter import NIHReporterCollector
 from src.db.session import async_session
 from src.pipeline.enrich import run_enricher
 from src.pipeline.ingest import run_collector

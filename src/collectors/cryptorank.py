@@ -116,7 +116,8 @@ class CryptoRankCollector(BaseCollector):
 
         # Parse round type
         stage = item.get("stage") or ""
-        round_type = STAGE_MAP.get(stage, stage.lower().replace(" ", "_") if stage else "undisclosed")
+        fallback = stage.lower().replace(" ", "_") if stage else "undisclosed"
+        round_type = STAGE_MAP.get(stage, fallback)
 
         # Parse date
         round_date = date.today()

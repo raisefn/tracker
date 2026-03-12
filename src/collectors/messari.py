@@ -119,7 +119,12 @@ class MessariCollector(BaseCollector):
                         amount_usd=amount,
                         round_type="token_sale",
                         sector="blockchain",
-                        project_url=profile.get("general", {}).get("overview", {}).get("official_links", [{}])[0].get("link") if profile.get("general", {}).get("overview", {}).get("official_links") else None,
+                        project_url=(
+                            profile.get("general", {}).get("overview", {})
+                            .get("official_links", [{}])[0].get("link")
+                            if profile.get("general", {}).get("overview", {}).get("official_links")
+                            else None
+                        ),
                         raw_data={
                             "source": "messari",
                             "messari_id": asset.get("id"),

@@ -164,6 +164,9 @@ class NIHReporterCollector(BaseCollector):
                 "pi_name": pi_name,
                 "city": org.get("org_city"),
                 "state": org.get("org_state"),
-                "nih_institute": project.get("agency_ic_fundings", [{}])[0].get("name") if project.get("agency_ic_fundings") else None,
+                "nih_institute": (
+                    project.get("agency_ic_fundings", [{}])[0].get("name")
+                    if project.get("agency_ic_fundings") else None
+                ),
             },
         )
