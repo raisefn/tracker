@@ -6,7 +6,8 @@ Runs collectors and enrichers at different frequencies:
 - Daily: GitHub, npm/PyPI, Product Hunt, YC directory, Form D promoters,
          DefiLlama, CoinGecko chain, Snapshot, Etherscan
 - Weekly: Accelerator scrapes, SEC investor intelligence, 990s,
-          SEC EDGAR bulk, OpenVC, Wellfound, AngelList investors, PitchBook News
+          SEC EDGAR bulk, OpenVC, Wellfound, AngelList investors, Crunchbase,
+          Angel groups, VC website scraping, PitchBook News
 """
 
 import asyncio
@@ -38,8 +39,12 @@ from src.collectors.sec_form_adv import SECFormADVEnricher
 from src.collectors.snapshot_enricher import SnapshotEnricher
 from src.collectors.snapshot_linker import SnapshotLinker
 from src.collectors.website_linker import WebsiteLinker
+from src.collectors.twitter_bio_enricher import TwitterBioEnricher
 from src.collectors.web_search_enricher import WebSearchEnricher
+from src.collectors.angel_group_scraper import AngelGroupScraper
 from src.collectors.angellist_enricher import AngelListInvestorEnricher
+from src.collectors.crunchbase_enricher import CrunchbaseEnricher
+from src.collectors.vc_website_enricher import VCWebsiteEnricher
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.db.session import async_session
@@ -134,6 +139,8 @@ async def daily_tick() -> None:
     await run_enricher_job("coingecko_community", CoinGeckoCommunityEnricher)
     await run_enricher_job("etherscan", EtherscanEnricher)
     await run_enricher_job("snapshot", SnapshotEnricher)
+    # Twitter bio enrichment (before web_search — can discover handles web_search would also find)
+    await run_enricher_job("twitter_bio", TwitterBioEnricher)
     # Web search enrichment for investor profiles (websites, social, descriptions)
     await run_enricher_job("web_search", WebSearchEnricher)
     # Investor profile aggregation (no API calls, purely DB-driven)
@@ -149,6 +156,9 @@ async def weekly_tick() -> None:
     await run_collector_job("sec_edgar_bulk", SECEdgarBulkCollector)
     await run_enricher_job("wellfound", WellfoundEnricher)
     await run_enricher_job("angellist_investors", AngelListInvestorEnricher)
+    await run_enricher_job("crunchbase", CrunchbaseEnricher)
+    await run_enricher_job("angel_groups", AngelGroupScraper)
+    await run_enricher_job("vc_website", VCWebsiteEnricher)
 
 
 async def scheduler_loop() -> None:
