@@ -116,6 +116,32 @@ async def run_enricher_job(name: str, enricher_cls) -> None:
         logger.error(f"[scheduler] {name} failed after {elapsed:.1f}s: {e}")
 
 
+LONG_JOB_TIMEOUT = 4 * 60 * 60  # 4 hours for discovery crawlers
+
+
+async def run_enricher_job_long(name: str, enricher_cls) -> None:
+    """Run an enricher with extended timeout (4 hours) for large discovery crawls."""
+    logger.info(f"[scheduler] Starting long enricher: {name}")
+    start = datetime.now()
+    try:
+        async with asyncio.timeout(LONG_JOB_TIMEOUT):
+            async with async_session() as session:
+                enricher = enricher_cls()
+                result = await run_enricher(session, enricher)
+                elapsed = (datetime.now() - start).total_seconds()
+                logger.info(
+                    f"[scheduler] {name} done in {elapsed:.1f}s — "
+                    f"updated={result.records_updated} skipped={result.records_skipped} "
+                    f"errors={len(result.errors)}"
+                )
+    except TimeoutError:
+        elapsed = (datetime.now() - start).total_seconds()
+        logger.error(f"[scheduler] {name} timed out after {elapsed:.1f}s")
+    except Exception as e:
+        elapsed = (datetime.now() - start).total_seconds()
+        logger.error(f"[scheduler] {name} failed after {elapsed:.1f}s: {e}")
+
+
 async def realtime_tick() -> None:
     """Run every 15 minutes: news feeds."""
     await run_collector_job("rss_funding", RSSFundingCollector)
@@ -179,8 +205,9 @@ async def weekly_tick() -> None:
     await run_collector_job("accelerator_directory", AcceleratorDirectoryCollector)
     await run_enricher_job("vc_website", VCWebsiteEnricher)
     # Angel investor discovery — find new angels from Wellfound + Crunchbase
-    await run_enricher_job("wellfound_angel_discovery", WellfoundAngelDiscovery)
-    await run_enricher_job("crunchbase_angel_discovery", CrunchbaseAngelDiscovery)
+    # These run with extended timeout (4 hours) since they crawl thousands of pages
+    await run_enricher_job_long("wellfound_angel_discovery", WellfoundAngelDiscovery)
+    await run_enricher_job_long("crunchbase_angel_discovery", CrunchbaseAngelDiscovery)
     await run_collector_job("sbir", SBIRCollector)
     await run_collector_job("cryptorank", CryptoRankCollector)
     await run_collector_job("nsf_awards", NSFAwardsCollector)

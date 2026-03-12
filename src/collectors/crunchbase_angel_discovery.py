@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 SOURCE_KEY = "crunchbase_discovery"
 REQUEST_DELAY = 4
-MAX_INVESTORS_PER_RUN = 500
+MAX_INVESTORS_PER_RUN = 5000
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
