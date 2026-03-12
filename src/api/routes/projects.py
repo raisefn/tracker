@@ -34,7 +34,7 @@ async def list_projects(
     search: str | None = Query(default=None, min_length=2),
     sort: str | None = Query(
         default=None,
-        description="Sort by: tvl, market_cap, github_stars, name",
+        description="Sort by: tvl, market_cap, github_stars, last_enriched_at, name",
     ),
 ):
     params = {
@@ -68,6 +68,7 @@ async def list_projects(
         "tvl": Project.tvl.desc().nulls_last(),
         "market_cap": Project.market_cap.desc().nulls_last(),
         "github_stars": Project.github_stars.desc().nulls_last(),
+        "last_enriched_at": Project.last_enriched_at.desc().nulls_last(),
         "name": Project.name,
     }.get(sort, Project.name)
     stmt = stmt.order_by(sort_col).offset(offset).limit(limit)
