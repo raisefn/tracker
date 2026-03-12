@@ -6,7 +6,6 @@ then fuzzy-matches against project names. This unlocks governance metrics
 """
 
 import logging
-from datetime import datetime, timezone
 
 import httpx
 from slugify import slugify

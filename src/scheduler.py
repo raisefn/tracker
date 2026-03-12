@@ -15,9 +15,13 @@ import logging
 from datetime import datetime
 
 from src.collectors.accelerator_500 import FiveHundredGlobalCollector
+from src.collectors.angel_group_scraper import AngelGroupScraper
+from src.collectors.angellist_enricher import AngelListInvestorEnricher
 from src.collectors.coingecko_community_enricher import CoinGeckoCommunityEnricher
 from src.collectors.coingecko_enricher import CoinGeckoEnricher
 from src.collectors.coingecko_linker import CoinGeckoLinker
+from src.collectors.crunchbase_enricher import CrunchbaseEnricher
+from src.collectors.defillama import DefiLlamaCollector
 from src.collectors.defillama_enricher import DefiLlamaProtocolEnricher
 from src.collectors.etherscan_enricher import EtherscanEnricher
 from src.collectors.formd_promoters import FormDPromoterEnricher
@@ -27,7 +31,6 @@ from src.collectors.hackernews import HackerNewsFundingCollector
 from src.collectors.hackernews_enricher import HackerNewsEnricher
 from src.collectors.investor_profile_aggregator import InvestorProfileAggregator
 from src.collectors.npm_enricher import NpmEnricher
-from src.collectors.defillama import DefiLlamaCollector
 from src.collectors.producthunt_enricher import ProductHuntEnricher
 from src.collectors.propublica_990 import ProPublica990Enricher
 from src.collectors.pypi_enricher import PyPIEnricher
@@ -38,13 +41,10 @@ from src.collectors.sec_edgar import SECEdgarBulkCollector, SECEdgarCollector
 from src.collectors.sec_form_adv import SECFormADVEnricher
 from src.collectors.snapshot_enricher import SnapshotEnricher
 from src.collectors.snapshot_linker import SnapshotLinker
-from src.collectors.website_linker import WebsiteLinker
 from src.collectors.twitter_bio_enricher import TwitterBioEnricher
-from src.collectors.web_search_enricher import WebSearchEnricher
-from src.collectors.angel_group_scraper import AngelGroupScraper
-from src.collectors.angellist_enricher import AngelListInvestorEnricher
-from src.collectors.crunchbase_enricher import CrunchbaseEnricher
 from src.collectors.vc_website_enricher import VCWebsiteEnricher
+from src.collectors.web_search_enricher import WebSearchEnricher
+from src.collectors.website_linker import WebsiteLinker
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.collectors.sbir import SBIRCollector

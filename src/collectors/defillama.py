@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import date, datetime
+from datetime import date
 
 import httpx
 
@@ -64,7 +64,11 @@ class DefiLlamaCollector(BaseCollector):
                 ts = r.get("date")
                 if ts is None:
                     continue
-                round_date = date.fromtimestamp(ts) if isinstance(ts, (int, float)) else date.fromisoformat(str(ts))
+                round_date = (
+                    date.fromtimestamp(ts)
+                    if isinstance(ts, (int, float))
+                    else date.fromisoformat(str(ts))
+                )
 
                 lead = r.get("leadInvestors", []) or []
                 other = r.get("otherInvestors", []) or []

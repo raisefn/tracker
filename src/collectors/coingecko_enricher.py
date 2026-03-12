@@ -107,7 +107,10 @@ class CoinGeckoEnricher(BaseEnricher):
                     await asyncio.sleep(delay)
 
                 except httpx.HTTPStatusError as e:
-                    error_msg = f"CoinGecko error for {project.coingecko_id}: {e.response.status_code}"
+                    error_msg = (
+                        f"CoinGecko error for "
+                        f"{project.coingecko_id}: {e.response.status_code}"
+                    )
                     logger.warning(error_msg)
                     result.errors.append(error_msg)
                     result.records_skipped += 1

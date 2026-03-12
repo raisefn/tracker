@@ -49,7 +49,9 @@ def normalize_firm_slug(name: str) -> str:
     return make_slug(lower.strip())
 
 
-async def find_investor_match(session: AsyncSession, name: str, **identifiers) -> "Investor | None":
+async def find_investor_match(
+    session: AsyncSession, name: str, **identifiers
+) -> "Investor | None":  # noqa: F821
     """Try to match an investor by identifiers, exact slug, normalized slug, or prefix."""
     from src.models import Investor
     from src.pipeline.normalizer import make_slug

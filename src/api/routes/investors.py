@@ -104,7 +104,10 @@ async def list_investors(
 
     response = InvestorListResponse(
         data=data,
-        meta=PaginationMeta(total=total, limit=limit, offset=offset, has_more=offset + limit < total),
+        meta=PaginationMeta(
+            total=total, limit=limit, offset=offset,
+            has_more=offset + limit < total,
+        ),
     )
     await set_cached(r, ck, response.model_dump_json())
     return response
@@ -299,7 +302,8 @@ async def get_syndicates(
     for round_id, inv_ids in round_investors.items():
         if len(inv_ids) < 2:
             continue
-        # For this round, find all subsets of size ≥2 where every pair has co-invested ≥min_appearances times
+        # For this round, find all subsets of size >=2
+        # where every pair has co-invested >=min_appearances times
         inv_list = sorted(inv_ids)
         # Check all subsets of size 2+ (cap at size 6 to avoid combinatorial explosion)
         max_group_size = min(len(inv_list), 6)
@@ -440,7 +444,7 @@ async def get_investor_network(
     )).scalar_one()
 
     # Avg syndicate size (avg number of investors per round this investor is in)
-    avg_size_stmt = (
+    (
         select(func.avg(func.count(RoundInvestor.investor_id)))
         .select_from(RoundInvestor)
         .where(RoundInvestor.round_id.in_(
@@ -604,7 +608,10 @@ async def get_investor_rounds(
 
     response = RoundListResponse(
         data=data,
-        meta=PaginationMeta(total=total, limit=limit, offset=offset, has_more=offset + limit < total),
+        meta=PaginationMeta(
+            total=total, limit=limit, offset=offset,
+            has_more=offset + limit < total,
+        ),
     )
     await set_cached(r, ck, response.model_dump_json())
     return response

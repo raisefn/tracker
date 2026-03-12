@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.api.deps import get_db
-from src.models import Investor, Round, RoundInvestor
+from src.models import Round, RoundInvestor
 
 router = APIRouter(prefix="/export", tags=["export"])
 

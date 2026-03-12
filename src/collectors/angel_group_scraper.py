@@ -198,7 +198,7 @@ TOP_ANGEL_GROUPS: list[dict] = [
 ]
 
 
-class _RateLimited(Exception):
+class _RateLimitedError(Exception):
     """Raised on 403/429 to stop the current source gracefully."""
 
 
@@ -496,7 +496,7 @@ class AngelGroupScraper(BaseEnricher):
                     await asyncio.sleep(REQUEST_DELAY)
                     await self._enrich_from_website(client, session, group_info, result)
 
-            except _RateLimited:
+            except _RateLimitedError:
                 logger.warning("[angel_groups] Rate limited on top group sites, stopping")
                 result.errors.append("Rate limited on angel group websites")
                 break
@@ -638,7 +638,7 @@ class AngelGroupScraper(BaseEnricher):
 
         # Store sub-source info in freshness metadata
         freshness = investor.source_freshness or {}
-        freshness[f"discovered_via"] = sub_source
+        freshness["discovered_via"] = sub_source
         investor.source_freshness = freshness
 
         session.add(investor)
@@ -653,7 +653,7 @@ class AngelGroupScraper(BaseEnricher):
     async def _fetch(self, client: httpx.AsyncClient, url: str) -> str | None:
         """Fetch a URL, returning HTML on success or None on failure.
 
-        Raises _RateLimited on 403/429.
+        Raises _RateLimitedError on 403/429.
         """
         try:
             resp = await client.get(url)
@@ -662,7 +662,7 @@ class AngelGroupScraper(BaseEnricher):
             return None
 
         if resp.status_code in (403, 429):
-            raise _RateLimited()
+            raise _RateLimitedError()
         if resp.status_code >= 400:
             logger.debug(f"[angel_groups] {resp.status_code} for {url}")
             return None

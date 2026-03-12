@@ -10,8 +10,11 @@ from sqlalchemy.orm import selectinload
 from src.api.cache import cache_key, get_cached, set_cached
 from src.api.deps import get_db, get_redis
 from src.api.schemas import (
-    MetricSnapshotOut, PaginationMeta, ProjectDetail,
-    ProjectListResponse, ProjectMetricsHistoryResponse,
+    MetricSnapshotOut,
+    PaginationMeta,
+    ProjectDetail,
+    ProjectListResponse,
+    ProjectMetricsHistoryResponse,
 )
 from src.config import settings
 from src.models import Project, ProjectMetricSnapshot
@@ -29,7 +32,10 @@ async def list_projects(
     chain: str | None = Query(default=None),
     status: str | None = Query(default=None),
     search: str | None = Query(default=None, min_length=2),
-    sort: str | None = Query(default=None, description="Sort by: tvl, market_cap, github_stars, name"),
+    sort: str | None = Query(
+        default=None,
+        description="Sort by: tvl, market_cap, github_stars, name",
+    ),
 ):
     params = {
         "limit": limit, "offset": offset, "sector": sector,
@@ -73,7 +79,10 @@ async def list_projects(
 
     response = ProjectListResponse(
         data=[ProjectDetail.model_validate(proj) for proj in projects],
-        meta=PaginationMeta(total=total, limit=limit, offset=offset, has_more=offset + limit < total),
+        meta=PaginationMeta(
+            total=total, limit=limit, offset=offset,
+            has_more=offset + limit < total,
+        ),
     )
     await set_cached(r, ck, response.model_dump_json())
     return response

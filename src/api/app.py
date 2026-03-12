@@ -6,21 +6,6 @@ from contextlib import asynccontextmanager
 
 import redis.asyncio as redis
 from fastapi import Depends, FastAPI, Request
-
-from src.pipeline.log_sanitizer import sanitize
-
-
-class _SanitizingFilter(logging.Filter):
-    """Strip sensitive data (tokens, passwords) from all log records."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if isinstance(record.msg, str):
-            record.msg = sanitize(record.msg)
-        return True
-
-
-# Apply to root logger so all modules benefit
-logging.getLogger().addFilter(_SanitizingFilter())
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func, select
@@ -34,7 +19,21 @@ from src.api.routes import comps, export, investors, projects, rounds, search, s
 from src.api.schemas import HealthResponse
 from src.config import settings
 from src.models import CollectorRun, Investor, Project, Round
+from src.pipeline.log_sanitizer import sanitize
 from src.scheduler import scheduler_loop
+
+
+class _SanitizingFilter(logging.Filter):
+    """Strip sensitive data (tokens, passwords) from all log records."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = sanitize(record.msg)
+        return True
+
+
+# Apply to root logger so all modules benefit
+logging.getLogger().addFilter(_SanitizingFilter())
 
 logger = logging.getLogger(__name__)
 
@@ -80,14 +79,15 @@ app.add_middleware(
     allow_headers=["X-API-Key"],
 )
 
-app.include_router(rounds.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
-app.include_router(investors.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
-app.include_router(projects.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
-app.include_router(stats.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
-app.include_router(search.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
-app.include_router(comps.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
-app.include_router(export.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
-app.include_router(webhooks.router, prefix=settings.api_prefix, dependencies=[Depends(require_api_key)])
+_api_deps = [Depends(require_api_key)]
+app.include_router(rounds.router, prefix=settings.api_prefix, dependencies=_api_deps)
+app.include_router(investors.router, prefix=settings.api_prefix, dependencies=_api_deps)
+app.include_router(projects.router, prefix=settings.api_prefix, dependencies=_api_deps)
+app.include_router(stats.router, prefix=settings.api_prefix, dependencies=_api_deps)
+app.include_router(search.router, prefix=settings.api_prefix, dependencies=_api_deps)
+app.include_router(comps.router, prefix=settings.api_prefix, dependencies=_api_deps)
+app.include_router(export.router, prefix=settings.api_prefix, dependencies=_api_deps)
+app.include_router(webhooks.router, prefix=settings.api_prefix, dependencies=_api_deps)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])

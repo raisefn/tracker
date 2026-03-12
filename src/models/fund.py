@@ -19,7 +19,9 @@ class Fund(Base, UUIDMixin, TimestampMixin):
     fund_size_usd: Mapped[int | None] = mapped_column(BigInteger)
     focus_sectors: Mapped[list[str] | None] = mapped_column(ARRAY(String))
     focus_stages: Mapped[list[str] | None] = mapped_column(ARRAY(String))
-    status: Mapped[str | None] = mapped_column(String(50))  # raising, active, fully_deployed, harvesting
+    status: Mapped[str | None] = mapped_column(
+        String(50)
+    )  # raising, active, fully_deployed, harvesting
     source: Mapped[str | None] = mapped_column(String(100))  # sec_form_adv, sec_13f, manual
 
     investor: Mapped["Investor"] = relationship(back_populates="funds")  # noqa: F821

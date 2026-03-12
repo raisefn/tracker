@@ -36,7 +36,10 @@ class TechstarsCollector(BaseCollector):
                         break
 
                     data = resp.json()
-                    companies = data if isinstance(data, list) else data.get("companies", data.get("results", []))
+                    companies = (
+                        data if isinstance(data, list)
+                        else data.get("companies", data.get("results", []))
+                    )
 
                     if not companies:
                         break

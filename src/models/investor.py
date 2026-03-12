@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, Float
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -14,7 +14,9 @@ class Investor(Base, UUIDMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(500), unique=True)
     slug: Mapped[str] = mapped_column(String(500), unique=True, index=True)
-    type: Mapped[str | None] = mapped_column(String(50))  # vc|angel|dao|corporate|fund_of_funds|family_office|foundation|other
+    type: Mapped[str | None] = mapped_column(
+        String(50)
+    )  # vc|angel|dao|corporate|fund_of_funds|family_office|foundation|other
     website: Mapped[str | None] = mapped_column(Text)
     twitter: Mapped[str | None] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)

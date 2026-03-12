@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
-from sqlalchemy import case, cast, func, select, Float
+from sqlalchemy import Float, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.cache import cache_key, get_cached, set_cached
@@ -93,7 +93,11 @@ async def stats_overview(
     if start:
         days = PERIOD_DAYS[period]
         prior_start = start - timedelta(days=days)
-        prior_filters = [Round.amount_usd.isnot(None), Round.date >= prior_start, Round.date < start]
+        prior_filters = [
+            Round.amount_usd.isnot(None),
+            Round.date >= prior_start,
+            Round.date < start,
+        ]
         prior_stmt = select(
             func.count(Round.id).label("total_rounds"),
             func.sum(Round.amount_usd).label("total_capital"),
@@ -103,9 +107,15 @@ async def stats_overview(
         rounds_pct = None
         capital_pct = None
         if prior_row.total_rounds and prior_row.total_rounds > 0:
-            rounds_pct = round((total_rounds - prior_row.total_rounds) / prior_row.total_rounds * 100, 1)
+            rounds_pct = round(
+                (total_rounds - prior_row.total_rounds)
+                / prior_row.total_rounds * 100, 1,
+            )
         if prior_row.total_capital and prior_row.total_capital > 0 and total_capital:
-            capital_pct = round((total_capital - int(prior_row.total_capital)) / int(prior_row.total_capital) * 100, 1)
+            capital_pct = round(
+                (total_capital - int(prior_row.total_capital))
+                / int(prior_row.total_capital) * 100, 1,
+            )
         prior_change = PeriodChange(total_rounds_pct=rounds_pct, total_capital_pct=capital_pct)
 
     response = StatsOverviewResponse(
@@ -255,7 +265,10 @@ async def stats_trends(
     sector: str | None = Query(default=None),
     period: str = Query(default="1y", pattern="^(30d|90d|1y|all)$"),
 ):
-    ck = cache_key("stats_trends", {"metric": metric, "granularity": granularity, "sector": sector, "period": period})
+    ck = cache_key("stats_trends", {
+        "metric": metric, "granularity": granularity,
+        "sector": sector, "period": period,
+    })
     cached = await get_cached(r, ck)
     if cached:
         return Response(content=cached, media_type="application/json")

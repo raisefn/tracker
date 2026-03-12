@@ -18,7 +18,12 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, find_investor_match, stamp_freshness
+from src.collectors.enrichment_base import (
+    BaseEnricher,
+    EnrichmentResult,
+    find_investor_match,
+    stamp_freshness,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +65,7 @@ FAMILY_OFFICE_INDICATORS = [
 
 def _classify_investor_type(row: dict) -> str:
     """Classify an adviser as vc, family_office, angel, etc."""
-    org_type = (row.get("TYPEOFORGANIZATION", "") or "").lower()
+    (row.get("TYPEOFORGANIZATION", "") or "").lower()
     status = (row.get("STATUS", "") or "").lower()
     name = (row.get("FIRMNAME", "") or "").lower()
 
@@ -151,7 +156,11 @@ class SECFormADVEnricher(BaseEnricher):
 
             advisers = []
 
-            if resp.headers.get("content-type", "").startswith("application/zip") or ADV_CURRENT_URL.endswith(".zip"):
+            is_zip = (
+                resp.headers.get("content-type", "").startswith("application/zip")
+                or ADV_CURRENT_URL.endswith(".zip")
+            )
+            if is_zip:
                 zf = zipfile.ZipFile(io.BytesIO(resp.content))
                 for name in zf.namelist():
                     if name.endswith(".csv") or name.endswith(".txt"):

@@ -55,7 +55,10 @@ class OpenVCCollector(BaseCollector):
                 data = resp.json()
             except httpx.HTTPStatusError as e:
                 if e.response.status_code in (404, 403, 401):
-                    logger.warning(f"OpenVC API not available (HTTP {e.response.status_code}), skipping")
+                    logger.warning(
+                        f"OpenVC API not available"
+                        f" (HTTP {e.response.status_code}), skipping"
+                    )
                     break
                 raise
             except Exception:

@@ -7,7 +7,6 @@ import re
 from datetime import date, datetime
 from email.utils import parsedate_to_datetime
 
-
 # --- Amount parsing ---
 
 AMOUNT_PATTERN = re.compile(
@@ -224,16 +223,29 @@ def is_valid_investor_name(name: str) -> bool:
 
     # Reject if it contains too many lowercase words (sentence fragment)
     if len(words) > 2:
-        lowercase_count = sum(1 for w in words if w[0].islower() and w not in ("a16z", "de", "von", "van", "del", "of", "and", "for"))
+        lowercase_count = sum(
+            1 for w in words
+            if w[0].islower()
+            and w not in (
+                "a16z", "de", "von", "van", "del", "of", "and", "for",
+            )
+        )
         if lowercase_count > len(words) * 0.6:
             return False
 
     # Reject possessive descriptions like "GitHub's former CEO"
-    if "'s " in name and any(w in lower for w in ["ceo", "cto", "founder", "president", "director", "chief", "head", "vp"]):
+    title_words = [
+        "ceo", "cto", "founder", "president",
+        "director", "chief", "head", "vp",
+    ]
+    if "'s " in name and any(w in lower for w in title_words):
         return False
 
     # Reject if it looks like a sentence (contains verbs)
-    sentence_verbs = ["has ", "have ", "will ", "would ", "could ", "should ", "is ", "are ", "was ", "were ", "been "]
+    sentence_verbs = [
+        "has ", "have ", "will ", "would ", "could ",
+        "should ", "is ", "are ", "was ", "were ", "been ",
+    ]
     if any(v in lower for v in sentence_verbs):
         return False
 

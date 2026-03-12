@@ -7,10 +7,9 @@ GitHub/Twitter handles. Extracts links via regex — no heavy parsing needed.
 import asyncio
 import logging
 import re
-from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import select, or_, and_
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness

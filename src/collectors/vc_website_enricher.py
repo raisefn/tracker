@@ -174,7 +174,11 @@ def _extract_team_members(soup: BeautifulSoup) -> list[dict[str, str]]:
                 words = name.split()
                 if len(words) < 2 or len(words) > 5:
                     continue
-                if not all(w[0].isupper() or w.lower() in ("de", "van", "von", "la", "el", "al") for w in words):
+                if not all(
+                    w[0].isupper()
+                    or w.lower() in ("de", "van", "von", "la", "el", "al")
+                    for w in words
+                ):
                     continue
 
                 title = ""

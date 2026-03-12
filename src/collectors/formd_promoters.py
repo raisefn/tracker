@@ -18,7 +18,12 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, find_investor_match, stamp_freshness
+from src.collectors.enrichment_base import (
+    BaseEnricher,
+    EnrichmentResult,
+    find_investor_match,
+    stamp_freshness,
+)
 from src.models import Investor
 from src.pipeline.normalizer import make_slug
 
@@ -195,7 +200,12 @@ class FormDPromoterEnricher(BaseEnricher):
 
                 name = f"{first} {last}".strip() if first else last
                 role = (row.get("RELATEDPERSONRELATIONSHIP", "") or "").strip()
-                state = (row.get("RELATEDPERSONSTATE", row.get("RELATEDPERSONSTATEORCOUNTRY", "")) or "").strip()
+                state = (
+                    row.get(
+                        "RELATEDPERSONSTATE",
+                        row.get("RELATEDPERSONSTATEORCOUNTRY", ""),
+                    ) or ""
+                ).strip()
                 accession = (row.get("ACCESSIONNUMBER", "") or "").strip()
 
                 promoters[name]["count"] += 1

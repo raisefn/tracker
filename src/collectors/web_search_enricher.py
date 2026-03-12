@@ -25,7 +25,11 @@ BATCH_SIZE = 50
 REQUEST_DELAY = 2.0  # seconds between requests to DuckDuckGo
 
 DDG_URL = "https://html.duckduckgo.com/html/"
-USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
 
 # Names that are not meaningfully searchable
 SKIP_NAMES = {"unknown", "undisclosed", "anonymous", "n/a", "na", "none", "tbd", "various"}
@@ -192,8 +196,17 @@ def _find_description(results: list[tuple[str, str]], investor_name: str) -> str
 def _find_location(results: list[tuple[str, str]]) -> str | None:
     """Try to extract a location from snippets (e.g. 'based in San Francisco')."""
     location_patterns = [
-        re.compile(r"(?:based|headquartered|located)\s+in\s+([A-Z][A-Za-z\s,]+?)(?:\.|,\s*(?:is|was|and|with|focused))", re.IGNORECASE),
-        re.compile(r"(?:based|headquartered|located)\s+in\s+([A-Z][A-Za-z\s,]+?)$", re.IGNORECASE),
+        re.compile(
+            r"(?:based|headquartered|located)\s+in\s+"
+            r"([A-Z][A-Za-z\s,]+?)"
+            r"(?:\.|,\s*(?:is|was|and|with|focused))",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"(?:based|headquartered|located)\s+in\s+"
+            r"([A-Z][A-Za-z\s,]+?)$",
+            re.IGNORECASE,
+        ),
     ]
     for _url, snippet in results:
         if not snippet:

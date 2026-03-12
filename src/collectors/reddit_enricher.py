@@ -23,7 +23,6 @@ class RedditEnricher(BaseEnricher):
 
         # Only enrich projects that already have a subreddit identified,
         # or search a limited batch of unenriched projects per run
-        from sqlalchemy import or_
 
         known = (
             await session.execute(

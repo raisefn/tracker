@@ -3,7 +3,7 @@
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
-from sqlalchemy import func, literal, select, text, union_all
+from sqlalchemy import func, literal, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.cache import cache_key, get_cached, set_cached
@@ -51,7 +51,10 @@ async def search(
             )
         else:
             stmt = (
-                select(Project.id, Project.name, Project.slug, Project.sector, literal(1.0).label("score"))
+                select(
+                    Project.id, Project.name, Project.slug,
+                    Project.sector, literal(1.0).label("score"),
+                )
                 .where(Project.name.ilike(f"%{q}%"))
                 .order_by(Project.name)
                 .limit(limit)
@@ -79,7 +82,10 @@ async def search(
             )
         else:
             stmt = (
-                select(Investor.id, Investor.name, Investor.slug, Investor.type, literal(1.0).label("score"))
+                select(
+                    Investor.id, Investor.name, Investor.slug,
+                    Investor.type, literal(1.0).label("score"),
+                )
                 .where(Investor.name.ilike(f"%{q}%"))
                 .order_by(Investor.name)
                 .limit(limit)

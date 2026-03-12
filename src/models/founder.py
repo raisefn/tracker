@@ -20,7 +20,11 @@ class Founder(Base, UUIDMixin, TimestampMixin):
     twitter: Mapped[str | None] = mapped_column(String(200))
     github: Mapped[str | None] = mapped_column(String(200))
     bio: Mapped[str | None] = mapped_column(Text)
-    previous_companies: Mapped[dict | None] = mapped_column(JSONB)  # [{"name": "...", "role": "...", "years": "..."}]
-    source: Mapped[str | None] = mapped_column(String(100))  # yc_directory, techstars, sec_edgar, manual
+    previous_companies: Mapped[dict | None] = mapped_column(
+        JSONB
+    )  # [{"name": "...", "role": "...", "years": "..."}]
+    source: Mapped[str | None] = mapped_column(
+        String(100)
+    )  # yc_directory, techstars, sec_edgar, manual
 
     project: Mapped["Project"] = relationship(back_populates="founders")  # noqa: F821

@@ -54,7 +54,10 @@ class ProductHuntEnricher(BaseEnricher):
                     await asyncio.sleep(2.0)
 
                 except Exception as e:
-                    error_msg = f"ProductHunt error for {project.slug} ({project.producthunt_slug}): {e}"
+                    error_msg = (
+                        f"ProductHunt error for "
+                        f"{project.slug} ({project.producthunt_slug}): {e}"
+                    )
                     logger.warning(error_msg)
                     result.errors.append(error_msg)
                     result.records_skipped += 1
@@ -83,7 +86,6 @@ class ProductHuntEnricher(BaseEnricher):
         text = resp.text
 
         # Try extracting from JSON-LD structured data
-        import json
         import re
 
         # Look for "votesCount":N pattern in embedded JSON

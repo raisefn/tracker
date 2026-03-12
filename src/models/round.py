@@ -22,7 +22,9 @@ class Round(Base, UUIDMixin, TimestampMixin):
     sector: Mapped[str | None] = mapped_column(String(100), index=True)
     category: Mapped[str | None] = mapped_column(String(200))
     source_url: Mapped[str | None] = mapped_column(Text)
-    source_type: Mapped[str] = mapped_column(String(50), index=True)  # defillama|sec_edgar|news|community|manual
+    source_type: Mapped[str] = mapped_column(
+        String(50), index=True
+    )  # defillama|sec_edgar|news|community|manual
     raw_data: Mapped[dict | None] = mapped_column(JSONB)
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
     validation_failures: Mapped[dict | None] = mapped_column(JSONB)

@@ -15,7 +15,12 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, find_investor_match, stamp_freshness
+from src.collectors.enrichment_base import (
+    BaseEnricher,
+    EnrichmentResult,
+    find_investor_match,
+    stamp_freshness,
+)
 
 logger = logging.getLogger(__name__)
 

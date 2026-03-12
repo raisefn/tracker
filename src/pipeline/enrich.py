@@ -21,7 +21,11 @@ SOURCE_METRIC_MAP: dict[str, list[str]] = {
     "reddit": ["reddit_subscribers"],
     "coingecko_community": ["twitter_followers", "telegram_members"],
     "etherscan": ["token_holder_count"],
-    "snapshot": ["snapshot_proposals_count", "snapshot_voters_count", "snapshot_proposal_activity_30d"],
+    "snapshot": [
+        "snapshot_proposals_count",
+        "snapshot_voters_count",
+        "snapshot_proposal_activity_30d",
+    ],
     "hackernews": ["hn_mentions_90d", "hn_total_points"],
     "npm": ["npm_downloads_monthly"],
     "pypi": ["pypi_downloads_monthly"],
@@ -48,7 +52,9 @@ async def snapshot_metrics(session: AsyncSession, source: str) -> int:
             .where(
                 ProjectMetricSnapshot.project_id == project.id,
                 ProjectMetricSnapshot.source == source,
-                ProjectMetricSnapshot.snapshotted_at >= datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc),
+                ProjectMetricSnapshot.snapshotted_at >= datetime.combine(
+                    today, datetime.min.time(), tzinfo=timezone.utc
+                ),
             )
             .limit(1)
         )

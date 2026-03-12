@@ -6,7 +6,6 @@ This unlocks CoinGecko market data, community data, and Etherscan enrichment.
 """
 
 import logging
-from datetime import datetime, timezone
 
 import httpx
 from slugify import slugify

@@ -85,7 +85,12 @@ async def list_rounds(
     data = []
     for rd in rounds:
         investors = [
-            {"id": ri.investor.id, "name": ri.investor.name, "slug": ri.investor.slug, "is_lead": ri.is_lead}
+            {
+                "id": ri.investor.id,
+                "name": ri.investor.name,
+                "slug": ri.investor.slug,
+                "is_lead": ri.is_lead,
+            }
             for ri in rd.investor_participations
         ]
         data.append(
@@ -109,7 +114,10 @@ async def list_rounds(
 
     response = RoundListResponse(
         data=data,
-        meta=PaginationMeta(total=total, limit=limit, offset=offset, has_more=offset + limit < total),
+        meta=PaginationMeta(
+            total=total, limit=limit, offset=offset,
+            has_more=offset + limit < total,
+        ),
     )
     await set_cached(r, ck, response.model_dump_json())
     return response
@@ -134,7 +142,12 @@ async def get_round(
         raise HTTPException(status_code=404, detail="Round not found")
 
     investors = [
-        {"id": ri.investor.id, "name": ri.investor.name, "slug": ri.investor.slug, "is_lead": ri.is_lead}
+        {
+            "id": ri.investor.id,
+            "name": ri.investor.name,
+            "slug": ri.investor.slug,
+            "is_lead": ri.is_lead,
+        }
         for ri in rd.investor_participations
     ]
     return RoundOut(

@@ -16,7 +16,6 @@ from sqlalchemy.orm import selectinload
 
 from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
 from src.models import Investor
-from src.models.project import Project
 from src.models.round import Round
 from src.models.round_investor import RoundInvestor
 
@@ -117,7 +116,10 @@ def _classify_type(
     if current_type and current_type not in ("other", "unknown"):
         return current_type
 
-    early_count = sum(1 for rt in round_types if (rt or "").lower().replace(" ", "_") in EARLY_STAGES)
+    early_count = sum(
+        1 for rt in round_types
+        if (rt or "").lower().replace(" ", "_") in EARLY_STAGES
+    )
 
     # Angel signals: few deals, small checks, early stage only
     if num_deals <= ANGEL_MAX_DEALS and (avg_check is None or avg_check <= ANGEL_MAX_CHECK):

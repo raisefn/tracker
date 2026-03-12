@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
@@ -110,12 +110,20 @@ class SnapshotEnricher(BaseEnricher):
         # Get total proposals and recent proposals
         query = """
         query($space: String!, $since: Int!) {
-            proposals(where: { space: $space }, first: 1000, orderBy: "created", orderDirection: desc) {
+            proposals(
+                where: { space: $space },
+                first: 1000,
+                orderBy: "created",
+                orderDirection: desc
+            ) {
                 id
                 created
                 votes
             }
-            recent: proposals(where: { space: $space, created_gte: $since }, first: 1000) {
+            recent: proposals(
+                where: { space: $space, created_gte: $since },
+                first: 1000
+            ) {
                 id
             }
         }

@@ -18,10 +18,14 @@ class Project(Base, UUIDMixin, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text)
     sector: Mapped[str | None] = mapped_column(String(100), index=True)
     chains: Mapped[list[str] | None] = mapped_column(ARRAY(String))
-    status: Mapped[str] = mapped_column(String(50), default="active")  # active|acquired|dead|unknown
+    status: Mapped[str] = mapped_column(
+        String(50), default="active"
+    )  # active|acquired|dead|unknown
 
     # Exit / acquisition data
-    exit_type: Mapped[str | None] = mapped_column(String(50))  # acquisition, ipo, shutdown, token_launch
+    exit_type: Mapped[str | None] = mapped_column(
+        String(50)
+    )  # acquisition, ipo, shutdown, token_launch
     exit_date: Mapped[date | None] = mapped_column(Date)
     acquirer: Mapped[str | None] = mapped_column(String(300))
     exit_valuation_usd: Mapped[int | None] = mapped_column(BigInteger)

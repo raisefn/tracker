@@ -14,7 +14,12 @@ from src.models import Project, Round
 router = APIRouter(prefix="/projects", tags=["comps"])
 
 
-def _score_comp(target: Project, target_round: Round | None, candidate: Project, candidate_round: Round | None) -> tuple[int, list[str]]:
+def _score_comp(
+    target: Project,
+    target_round: Round | None,
+    candidate: Project,
+    candidate_round: Round | None,
+) -> tuple[int, list[str]]:
     """Score a candidate project against the target. Returns (score, reasons)."""
     score = 0
     reasons: list[str] = []
@@ -115,7 +120,8 @@ async def get_comps(
                 & (Round.date == latest_round_sub.c.max_date),
             )
         )
-        candidate_rounds = {r.project_id: r for r in (await db.execute(rounds_stmt)).scalars().all()}
+        rounds_result = (await db.execute(rounds_stmt)).scalars().all()
+        candidate_rounds = {r.project_id: r for r in rounds_result}
     else:
         candidate_rounds = {}
 

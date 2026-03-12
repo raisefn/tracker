@@ -16,7 +16,12 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, find_investor_match, stamp_freshness
+from src.collectors.enrichment_base import (
+    BaseEnricher,
+    EnrichmentResult,
+    find_investor_match,
+    stamp_freshness,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +129,10 @@ class SEC13FEnricher(BaseEnricher):
                         cik = row.get("CIK", "").strip()
                         if cik:
                             filers[cik] = {
-                                "name": row.get("FILINGMANAGER_NAME", row.get("COMPANYNAME", "")).strip(),
+                                "name": row.get(
+                                    "FILINGMANAGER_NAME",
+                                    row.get("COMPANYNAME", ""),
+                                ).strip(),
                                 "cik": cik,
                                 "report_date": row.get("REPORTCALENDARORQUARTER", "").strip(),
                                 "holdings": [],
@@ -148,7 +156,10 @@ class SEC13FEnricher(BaseEnricher):
                             continue
 
                         try:
-                            value = int(float(row.get("VALUE", "0")) * 1000)  # 13F values in thousands
+                            # 13F values in thousands
+                            value = int(
+                                float(row.get("VALUE", "0")) * 1000
+                            )
                         except (ValueError, TypeError):
                             value = 0
 

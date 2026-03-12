@@ -36,7 +36,10 @@ class EtherscanEnricher(BaseEnricher):
         ).scalars().all()
 
         if not projects:
-            logger.info("No projects with token_contract found. Run CoinGecko community enricher first.")
+            logger.info(
+                "No projects with token_contract found."
+                " Run CoinGecko community enricher first."
+            )
             return result
 
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -58,7 +61,10 @@ class EtherscanEnricher(BaseEnricher):
                     await asyncio.sleep(0.25)  # 5 calls/sec
 
                 except Exception as e:
-                    error_msg = f"Etherscan error for {project.slug} ({project.token_contract}): {e}"
+                    error_msg = (
+                        f"Etherscan error for "
+                        f"{project.slug} ({project.token_contract}): {e}"
+                    )
                     logger.warning(error_msg)
                     result.errors.append(error_msg)
                     result.records_skipped += 1

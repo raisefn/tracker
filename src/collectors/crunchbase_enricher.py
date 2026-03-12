@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
-from src.models import Investor, Round, RoundInvestor
+from src.models import Investor, RoundInvestor
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,7 @@ class CrunchbaseEnricher(BaseEnricher):
                         # Still stamp so we don't retry every run
                         stamp_freshness(investor, self.source_name())
                         result.records_skipped += 1
-                except _RateLimited:
+                except _RateLimitedError:
                     logger.warning(f"[{SOURCE_KEY}] Rate limited (429/403), stopping run")
                     result.errors.append("Rate limited, stopping early")
                     break
@@ -185,7 +185,7 @@ class CrunchbaseEnricher(BaseEnricher):
     async def _try_url(self, client: httpx.AsyncClient, url: str) -> str | None:
         """Fetch a URL, returning HTML on success or None on 404.
 
-        Raises _RateLimited on 403/429.
+        Raises _RateLimitedError on 403/429.
         """
         try:
             resp = await client.get(url)
@@ -194,7 +194,7 @@ class CrunchbaseEnricher(BaseEnricher):
             return None
 
         if resp.status_code in (403, 429):
-            raise _RateLimited()
+            raise _RateLimitedError()
         if resp.status_code == 404 or resp.status_code >= 400:
             return None
 
@@ -232,7 +232,7 @@ class CrunchbaseEnricher(BaseEnricher):
                     # Clean trailing query params
                     return actual_url.split("?")[0]
 
-        except _RateLimited:
+        except _RateLimitedError:
             raise
         except Exception as e:
             logger.debug(f"[{SOURCE_KEY}] Search error for '{investor_name}': {e}")
@@ -622,5 +622,5 @@ class CrunchbaseEnricher(BaseEnricher):
         return None
 
 
-class _RateLimited(Exception):
+class _RateLimitedError(Exception):
     """Raised when Crunchbase returns 403 or 429."""

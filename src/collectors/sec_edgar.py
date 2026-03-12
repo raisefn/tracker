@@ -5,7 +5,8 @@ Every US company raising under Regulation D must file Form D,
 disclosing offering details, amounts, and related persons.
 
 Three modes:
-1. Bulk import: Download quarterly CSV data sets (historical backfill — deprecated, SEC removed files)
+1. Bulk import: Download quarterly CSV data sets
+   (historical backfill — deprecated, SEC removed files)
 2. EFTS search: Real-time search for recent Form D filings (ongoing polling)
 3. EFTS+XML: Search EFTS for filings, fetch and parse each XML (historical backfill)
 """
@@ -196,7 +197,10 @@ class SECEdgarCollector(BaseCollector):
         return RawRound(
             project_name=company_name.strip(),
             date=filing_date,
-            source_url=f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={source.get('entity_id', '')}&type=D",
+            source_url=(
+                f"https://www.sec.gov/cgi-bin/browse-edgar"
+                f"?action=getcompany&CIK={source.get('entity_id', '')}&type=D"
+            ),
             raw_data={
                 "cik": source.get("entity_id"),
                 "accession_number": source.get("adsh"),

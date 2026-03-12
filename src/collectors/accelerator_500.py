@@ -27,7 +27,9 @@ class FiveHundredGlobalCollector(BaseCollector):
             "Accept": "text/html",
         }
 
-        async with httpx.AsyncClient(timeout=30.0, headers=headers, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=30.0, headers=headers, follow_redirects=True
+        ) as client:
             try:
                 resp = await client.get(PORTFOLIO_URL)
                 if resp.status_code != 200:
@@ -51,10 +53,15 @@ class FiveHundredGlobalCollector(BaseCollector):
         soup = BeautifulSoup(html, "html.parser")
         companies = []
 
-        cards = soup.select("[class*='company'], [class*='founder'], [class*='portfolio'], [class*='card']")
+        cards = soup.select(
+            "[class*='company'], [class*='founder'],"
+            " [class*='portfolio'], [class*='card']"
+        )
 
         if not cards:
-            cards = soup.find_all("article") or soup.find_all("div", class_=lambda c: c and "item" in c.lower())
+            cards = soup.find_all("article") or soup.find_all(
+                "div", class_=lambda c: c and "item" in c.lower()
+            )
 
         for card in cards:
             name_el = card.find(["h2", "h3", "h4", "a"])
@@ -76,7 +83,10 @@ class FiveHundredGlobalCollector(BaseCollector):
                 link = link_el["href"]
 
             location = ""
-            loc_el = card.find(class_=lambda c: c and "location" in c.lower()) if card.get("class") else None
+            loc_el = (
+                card.find(class_=lambda c: c and "location" in c.lower())
+                if card.get("class") else None
+            )
             if loc_el:
                 location = loc_el.get_text(strip=True)
 

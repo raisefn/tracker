@@ -3,7 +3,6 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-
 # --- Shared ---
 
 class PaginationMeta(BaseModel):

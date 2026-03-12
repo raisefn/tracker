@@ -9,13 +9,17 @@ from sqlalchemy.orm import selectinload
 
 from src.api.cache import invalidate_all
 from src.collectors.base import BaseCollector, RawRound
+from src.collectors.news_parser import clean_company_name, is_valid_investor_name
 from src.db.redis import get_redis_client
 from src.models import CollectorRun, Founder, Investor, Project, Round, RoundInvestor
-from src.collectors.news_parser import clean_company_name, is_valid_investor_name
 from src.pipeline.entity_resolver import resolve_investor_name
-from src.pipeline.webhook_dispatch import dispatch_event
 from src.pipeline.normalizer import make_slug, normalize_round
-from src.pipeline.validator import CORROBORATION_BOOST, MAX_CORROBORATION_BOOST, compute_confidence, validate_round
+from src.pipeline.validator import (
+    CORROBORATION_BOOST,
+    compute_confidence,
+    validate_round,
+)
+from src.pipeline.webhook_dispatch import dispatch_event
 
 logger = logging.getLogger(__name__)
 
@@ -204,13 +208,21 @@ async def ingest_round(
         investor = await get_or_create_investor(session, inv_name)
         if investor and investor.slug not in seen_slugs:
             seen_slugs.add(investor.slug)
-            session.add(RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=True))
+            session.add(RoundInvestor(
+                round_id=round_record.id,
+                investor_id=investor.id,
+                is_lead=True,
+            ))
 
     for inv_name in raw.other_investors:
         investor = await get_or_create_investor(session, inv_name)
         if investor and investor.slug not in seen_slugs:
             seen_slugs.add(investor.slug)
-            session.add(RoundInvestor(round_id=round_record.id, investor_id=investor.id, is_lead=False))
+            session.add(RoundInvestor(
+                round_id=round_record.id,
+                investor_id=investor.id,
+                is_lead=False,
+            ))
 
     # Create founder records if provided
     if raw.founders:

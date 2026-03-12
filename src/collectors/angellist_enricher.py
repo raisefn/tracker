@@ -78,7 +78,7 @@ class AngelListInvestorEnricher(BaseEnricher):
                         # Still stamp freshness so we don't retry every run
                         stamp_freshness(investor, self.source_name())
                         result.records_skipped += 1
-                except _RateLimited:
+                except _RateLimitedError:
                     logger.warning("[angellist] Rate limited (429/403), stopping run")
                     result.errors.append("Rate limited, stopping early")
                     break
@@ -158,7 +158,7 @@ class AngelListInvestorEnricher(BaseEnricher):
     async def _try_url(self, client: httpx.AsyncClient, url: str) -> str | None:
         """Fetch a URL, returning HTML on success or None on 404.
 
-        Raises _RateLimited on 403/429.
+        Raises _RateLimitedError on 403/429.
         """
         try:
             resp = await client.get(url)
@@ -167,7 +167,7 @@ class AngelListInvestorEnricher(BaseEnricher):
             return None
 
         if resp.status_code in (403, 429):
-            raise _RateLimited()
+            raise _RateLimitedError()
         if resp.status_code == 404 or resp.status_code >= 400:
             return None
 
@@ -184,7 +184,7 @@ class AngelListInvestorEnricher(BaseEnricher):
                 params={"q": query},
             )
             if resp.status_code in (403, 429):
-                raise _RateLimited()
+                raise _RateLimitedError()
             if resp.status_code != 200:
                 return None
 
@@ -201,7 +201,7 @@ class AngelListInvestorEnricher(BaseEnricher):
                 if "wellfound.com/people/" in actual_url or "wellfound.com/company/" in actual_url:
                     return actual_url
 
-        except _RateLimited:
+        except _RateLimitedError:
             raise
         except Exception as e:
             logger.debug(f"[angellist] Search error for '{investor_name}': {e}")
@@ -373,5 +373,5 @@ class AngelListInvestorEnricher(BaseEnricher):
         return None
 
 
-class _RateLimited(Exception):
+class _RateLimitedError(Exception):
     """Raised when Wellfound returns 403 or 429."""
