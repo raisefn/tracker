@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
-from sqlalchemy import Float, cast, func, select
+from sqlalchemy import Float, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.cache import cache_key, get_cached, set_cached

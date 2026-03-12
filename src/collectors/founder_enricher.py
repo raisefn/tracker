@@ -16,7 +16,6 @@ Rate limit: 2s between DDG requests, max 30 founders per run.
 import asyncio
 import logging
 import re
-from datetime import datetime, timezone
 from urllib.parse import unquote
 
 import httpx
