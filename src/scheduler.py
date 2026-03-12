@@ -47,10 +47,8 @@ from src.collectors.crunchbase_enricher import CrunchbaseEnricher
 from src.collectors.vc_website_enricher import VCWebsiteEnricher
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
-from src.collectors.openvc import OpenVCCollector
 from src.collectors.sbir import SBIRCollector
-from src.collectors.messari import MessariCollector
-from src.collectors.token_terminal import TokenTerminalEnricher
+from src.collectors.cryptorank import CryptoRankCollector
 from src.db.session import async_session
 from src.pipeline.enrich import run_enricher
 from src.pipeline.ingest import run_collector
@@ -163,10 +161,8 @@ async def weekly_tick() -> None:
     await run_enricher_job("crunchbase", CrunchbaseEnricher)
     await run_enricher_job("angel_groups", AngelGroupScraper)
     await run_enricher_job("vc_website", VCWebsiteEnricher)
-    await run_collector_job("openvc", OpenVCCollector)
     await run_collector_job("sbir", SBIRCollector)
-    await run_collector_job("messari", MessariCollector)
-    await run_enricher_job("token_terminal", TokenTerminalEnricher)
+    await run_collector_job("cryptorank", CryptoRankCollector)
 
 
 async def scheduler_loop() -> None:
