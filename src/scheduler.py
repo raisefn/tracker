@@ -49,6 +49,8 @@ from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.collectors.sbir import SBIRCollector
 from src.collectors.cryptorank import CryptoRankCollector
+from src.collectors.nsf_awards import NSFAwardsCollector
+from src.collectors.nih_reporter import NIHReporterCollector
 from src.db.session import async_session
 from src.pipeline.enrich import run_enricher
 from src.pipeline.ingest import run_collector
@@ -163,6 +165,8 @@ async def weekly_tick() -> None:
     await run_enricher_job("vc_website", VCWebsiteEnricher)
     await run_collector_job("sbir", SBIRCollector)
     await run_collector_job("cryptorank", CryptoRankCollector)
+    await run_collector_job("nsf_awards", NSFAwardsCollector)
+    await run_collector_job("nih_reporter", NIHReporterCollector)
 
 
 async def scheduler_loop() -> None:
