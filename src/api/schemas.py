@@ -293,6 +293,43 @@ class StatsTrendsResponse(BaseModel):
     data: list[TrendPointOut]
 
 
+# --- Signals / Derived Metrics ---
+
+class SectorMomentumOut(BaseModel):
+    sector: str
+    current_count: int
+    prior_count: int
+    change_pct: float | None
+    current_capital: int | None
+    prior_capital: int | None
+    capital_change_pct: float | None
+
+
+class ProjectSignalOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    sector: str | None
+    days_since_last_raise: int
+    last_round_type: str | None
+    last_round_amount: int | None
+    total_raised: int | None
+    round_count: int
+    github_stars: int | None = None
+    github_commits_30d: int | None = None
+
+
+class InvestorVelocityOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    deals_30d: int
+    deals_90d: int
+    deals_365d: int
+    total_deals: int
+    avg_days_between_deals: float | None
+
+
 # --- Search ---
 
 class SearchResultOut(BaseModel):

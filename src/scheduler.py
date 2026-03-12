@@ -49,6 +49,7 @@ from src.collectors.twitter_bio_enricher import TwitterBioEnricher
 from src.collectors.vc_website_enricher import VCWebsiteEnricher
 from src.collectors.web_search_enricher import WebSearchEnricher
 from src.collectors.website_linker import WebsiteLinker
+from src.collectors.founder_enricher import FounderEnricher
 from src.collectors.wellfound import WellfoundEnricher
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.db.session import async_session
@@ -149,6 +150,8 @@ async def daily_tick() -> None:
     await run_enricher_job("web_search", WebSearchEnricher)
     # Investor profile aggregation (no API calls, purely DB-driven)
     await run_enricher_job("investor_profile_aggregator", InvestorProfileAggregator)
+    # Founder enrichment (DDG search for LinkedIn, bio, previous companies)
+    await run_enricher_job("founder_enricher", FounderEnricher)
 
 
 async def weekly_tick() -> None:

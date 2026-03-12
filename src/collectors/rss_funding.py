@@ -80,7 +80,7 @@ RSS_FEEDS = [
     # --- Regional / ecosystem ---
     {
         "name": "EU-Startups",
-        "url": "https://www.eu-startups.com/feed/",
+        "url": "https://www.eu-startups.com/feed",
     },
     {
         "name": "TechCrunch Venture",
@@ -96,16 +96,8 @@ RSS_FEEDS = [
     },
     # --- Additional general startup ---
     {
-        "name": "Business Insider Tech",
-        "url": "https://www.businessinsider.com/sai/rss",
-    },
-    {
         "name": "Wired Business",
         "url": "https://www.wired.com/feed/category/business/latest/rss",
-    },
-    {
-        "name": "The Information",
-        "url": "https://www.theinformation.com/feed",
     },
     {
         "name": "Finsmes",
@@ -134,10 +126,6 @@ RSS_FEEDS = [
     {
         "name": "Pulse 2.0",
         "url": "https://pulse2.com/feed/",
-    },
-    {
-        "name": "FinSMEs Daily",
-        "url": "https://www.finsmes.com/category/daily-funding/feed",
     },
     # --- Fintech-specific ---
     {
@@ -175,15 +163,7 @@ RSS_FEEDS = [
         "name": "e27",
         "url": "https://e27.co/feed/",
     },
-    {
-        "name": "TechInAsia",
-        "url": "https://www.techinasia.com/feed",
-    },
     # --- Latin America ---
-    {
-        "name": "Contxto",
-        "url": "https://contxto.com/feed/",
-    },
     # --- Africa ---
     {
         "name": "TechCabal",
@@ -221,10 +201,6 @@ RSS_FEEDS = [
     {
         "name": "The Real Deal",
         "url": "https://therealdeal.com/feed/",
-    },
-    {
-        "name": "Pitchfork Economics",
-        "url": "https://pitchbook.com/news/feed",
     },
     {
         "name": "PYMNTS",
