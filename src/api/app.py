@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from src.api.auth import require_api_key
 from src.api.cache import cache_key, get_cached, set_cached
 from src.api.deps import get_db, get_redis
-from src.api.routes import comps, export, investors, projects, rounds, search, stats, webhooks
+from src.api.routes import comps, export, intel, investors, projects, rounds, search, stats, webhooks
 from src.api.schemas import HealthResponse
 from src.config import settings
 from src.models import CollectorRun, Investor, Project, Round
@@ -88,6 +88,7 @@ app.include_router(search.router, prefix=settings.api_prefix, dependencies=_api_
 app.include_router(comps.router, prefix=settings.api_prefix, dependencies=_api_deps)
 app.include_router(export.router, prefix=settings.api_prefix, dependencies=_api_deps)
 app.include_router(webhooks.router, prefix=settings.api_prefix, dependencies=_api_deps)
+app.include_router(intel.router, prefix=settings.api_prefix)  # uses own contributor auth
 
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])
