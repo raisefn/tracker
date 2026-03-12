@@ -16,7 +16,7 @@ from src.collectors.base import BaseCollector, RawRound
 
 logger = logging.getLogger(__name__)
 
-SBIR_API = "https://www.sbir.gov/api/awards.json"
+SBIR_API = "https://api.www.sbir.gov/public/api/awards"
 
 # Map SBIR phases to round-type equivalents
 PHASE_MAP = {
@@ -62,7 +62,6 @@ class SBIRCollector(BaseCollector):
                     params={
                         "rows": min(100, self.rows - start),
                         "start": start,
-                        "sort": "award_year desc",
                     },
                 )
                 resp.raise_for_status()

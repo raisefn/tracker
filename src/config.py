@@ -38,7 +38,7 @@ class Settings(BaseSettings):
                 values["redis_url"] = raw
         return values
 
-    model_config = {"env_prefix": "RAISEFN_"}
+    model_config = {"env_prefix": "RAISEFN_", "env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 settings = Settings()
