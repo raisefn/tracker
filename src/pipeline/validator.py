@@ -1,8 +1,34 @@
+import re
 from datetime import date
 
 from src.collectors.base import RawRound
 
 BITCOIN_GENESIS = date(2009, 1, 3)
+
+# Patterns that indicate a junk project name (SEC EDGAR artifacts, dollar amounts, CIK numbers)
+_JUNK_NAME_PATTERNS = [
+    re.compile(r"^\$"),                    # Starts with dollar sign
+    re.compile(r"^\d{5,}\)?$"),            # CIK numbers, optionally with trailing paren
+    re.compile(r"^[0-9\s\-\(\)]+$"),       # Only digits, spaces, hyphens, parens
+    re.compile(r"^\$?\d+[MBKmk]?\s"),      # Starts with money amount ("$2M ", "$100M ")
+    re.compile(r"^N/?A\b"),                # Starts with N/A
+    re.compile(r"^(See|None|Unknown|Test|Example)\b", re.I),  # Placeholder names
+]
+
+
+def is_valid_project_name(name: str) -> bool:
+    """Check if a project name looks like an actual company/project, not SEC junk."""
+    if not name or len(name.strip()) < 2:
+        return False
+    name = name.strip()
+    # Must contain at least one letter
+    if not any(c.isalpha() for c in name):
+        return False
+    # Check against junk patterns
+    for pattern in _JUNK_NAME_PATTERNS:
+        if pattern.search(name):
+            return False
+    return True
 
 # Cross-source corroboration: each additional source confirming a round
 CORROBORATION_BOOST = 0.1
@@ -34,6 +60,8 @@ def validate_round(raw: RawRound) -> list[str]:
     # Project name
     if not raw.project_name or raw.project_name.strip() == "":
         failures.append("Missing project name")
+    elif not is_valid_project_name(raw.project_name):
+        failures.append(f"Invalid project name: {raw.project_name!r}")
 
     return failures
 

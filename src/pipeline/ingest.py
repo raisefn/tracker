@@ -17,6 +17,7 @@ from src.pipeline.normalizer import make_slug, normalize_round
 from src.pipeline.validator import (
     CORROBORATION_BOOST,
     compute_confidence,
+    is_valid_project_name,
     validate_round,
 )
 from src.pipeline.webhook_dispatch import dispatch_event
@@ -24,8 +25,11 @@ from src.pipeline.webhook_dispatch import dispatch_event
 logger = logging.getLogger(__name__)
 
 
-async def get_or_create_project(session: AsyncSession, name: str, raw: RawRound) -> Project:
+async def get_or_create_project(session: AsyncSession, name: str, raw: RawRound) -> Project | None:
     name = clean_company_name(name)
+    if not is_valid_project_name(name):
+        logger.debug("Rejected junk project name: %r", name)
+        return None
     slug = make_slug(name)
     result = await session.execute(select(Project).where(Project.slug == slug))
     project = result.scalar_one_or_none()
@@ -177,6 +181,8 @@ async def ingest_round(
     confidence = compute_confidence(raw, source_type, failures)
 
     project = await get_or_create_project(session, raw.project_name, raw)
+    if project is None:
+        return None
 
     existing = await find_existing_round(session, project.id, raw.date, raw.amount_usd)
     if existing:

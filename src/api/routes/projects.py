@@ -3,7 +3,7 @@
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, not_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -50,7 +50,15 @@ async def list_projects(
     stmt = select(Project).options(selectinload(Project.founders))
     count_stmt = select(func.count(Project.id))
 
-    filters = []
+    # Exclude junk project names (SEC EDGAR artifacts) unless explicitly searching
+    junk_filter = and_(
+        not_(Project.name.regexp_match(r"^\$")),
+        not_(Project.name.regexp_match(r"^\d{5,}\)?$")),
+        not_(Project.name.regexp_match(r"^[0-9\s\-\(\)]+$")),
+        not_(Project.name.regexp_match(r"^N/?A\b")),
+    )
+
+    filters = [junk_filter]
     if sector:
         filters.append(Project.sector == sector)
     if chain:
