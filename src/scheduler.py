@@ -225,6 +225,14 @@ async def scheduler_loop() -> None:
     except Exception as e:
         logger.error(f"[scheduler] startup daily_tick error: {e}")
 
+    # Run angel discovery first — these are the priority overnight jobs
+    logger.info("[scheduler] Running angel discovery on startup")
+    try:
+        await run_enricher_job_long("linkedin_angel_discovery", LinkedInAngelDiscovery)
+        await run_enricher_job_long("published_list_discovery", PublishedListAngelDiscovery)
+    except Exception as e:
+        logger.error(f"[scheduler] startup angel discovery error: {e}")
+
     logger.info("[scheduler] Running weekly tick on startup")
     try:
         await weekly_tick()
