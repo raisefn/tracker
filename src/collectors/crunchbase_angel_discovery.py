@@ -463,6 +463,11 @@ class PublishedListAngelDiscovery(BaseEnricher):
             "more", "learn", "see", "view", "click", "here", "share",
             "related", "posts", "articles", "news", "home", "contact",
             "sign", "login", "register", "subscribe", "newsletter",
+            "number", "total", "notable", "portfolio", "companies",
+            "exits", "investments", "overview", "summary", "table",
+            "contents", "key", "takeaways", "conclusion", "introduction",
+            "featured", "image", "source", "photo", "credit", "getty",
+            "shutterstock", "updated", "published", "written", "author",
         }
         lower_words = {w.lower() for w in words}
         if lower_words & non_names:
