@@ -15,6 +15,7 @@ class ApiKey(Base, UUIDMixin, TimestampMixin):
     key_prefix: Mapped[str] = mapped_column(String(8))
     owner: Mapped[str] = mapped_column(String(200))
     email: Mapped[str | None] = mapped_column(String(320))
+    role: Mapped[str] = mapped_column(String(20), default="founder")  # founder | investor | builder
     tier: Mapped[str] = mapped_column(String(20), default="free")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
