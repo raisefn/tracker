@@ -330,6 +330,14 @@ class InvestorVelocityOut(BaseModel):
     avg_days_between_deals: float | None
 
 
+# --- Community ---
+
+class CommunityStatsResponse(BaseModel):
+    founders: int
+    investors: int
+    builders: int
+
+
 # --- Search ---
 
 class SearchResultOut(BaseModel):

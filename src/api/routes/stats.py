@@ -5,12 +5,13 @@ from datetime import date, timedelta
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
-from sqlalchemy import Float, case, cast, func, select
+from sqlalchemy import Float, case, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.cache import cache_key, get_cached, set_cached
 from src.api.deps import get_db, get_redis
 from src.api.schemas import (
+    CommunityStatsResponse,
     InvestorVelocityOut,
     PeriodChange,
     ProjectSignalOut,
@@ -561,3 +562,30 @@ async def stats_velocity(
     json_str = TypeAdapter(list[InvestorVelocityOut]).dump_json(data).decode()
     await set_cached(r, ck, json_str)
     return data
+
+
+@router.get("/community", response_model=CommunityStatsResponse)
+async def stats_community(
+    db: AsyncSession = Depends(get_db),
+    r: redis.Redis = Depends(get_redis),
+):
+    """Community stats: count of founders, investors, and builders on raisefn."""
+    ck = cache_key("stats_community", {})
+    cached = await get_cached(r, ck)
+    if cached:
+        return Response(content=cached, media_type="application/json")
+
+    # Query brain-owned user_profiles table (same database)
+    stmt = text(
+        "SELECT role, COUNT(*) as cnt FROM user_profiles GROUP BY role"
+    )
+    rows = (await db.execute(stmt)).all()
+    counts = {row.role: row.cnt for row in rows}
+
+    response = CommunityStatsResponse(
+        founders=counts.get("founder", 0),
+        investors=counts.get("investor", 0),
+        builders=counts.get("builder", 0),
+    )
+    await set_cached(r, ck, response.model_dump_json())
+    return response
