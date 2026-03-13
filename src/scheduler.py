@@ -56,8 +56,8 @@ from src.collectors.openvc import OpenVCCollector
 from src.collectors.preseed_fund_directory import PreSeedFundDirectory
 from src.collectors.techstars import TechstarsCollector
 from src.collectors.wellfound import WellfoundEnricher
-from src.collectors.wellfound_angel_discovery import WellfoundAngelDiscovery
-from src.collectors.crunchbase_angel_discovery import CrunchbaseAngelDiscovery
+from src.collectors.wellfound_angel_discovery import LinkedInAngelDiscovery
+from src.collectors.crunchbase_angel_discovery import PublishedListAngelDiscovery
 from src.collectors.yc_directory import YCDirectoryCollector
 from src.db.session import async_session
 from src.pipeline.enrich import run_enricher
@@ -206,8 +206,8 @@ async def weekly_tick() -> None:
     await run_enricher_job("vc_website", VCWebsiteEnricher)
     # Angel investor discovery — find new angels from Wellfound + Crunchbase
     # These run with extended timeout (4 hours) since they crawl thousands of pages
-    await run_enricher_job_long("wellfound_angel_discovery", WellfoundAngelDiscovery)
-    await run_enricher_job_long("crunchbase_angel_discovery", CrunchbaseAngelDiscovery)
+    await run_enricher_job_long("linkedin_angel_discovery", LinkedInAngelDiscovery)
+    await run_enricher_job_long("published_list_discovery", PublishedListAngelDiscovery)
     await run_collector_job("sbir", SBIRCollector)
     await run_collector_job("cryptorank", CryptoRankCollector)
     await run_collector_job("nsf_awards", NSFAwardsCollector)

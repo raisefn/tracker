@@ -1,20 +1,22 @@
-"""Wellfound angel investor discovery.
+"""LinkedIn-based angel investor discovery via DuckDuckGo.
 
-Discovers new angel investors by crawling Wellfound's public directory
-and people pages. Unlike the AngelList enricher (which fills in data on
-known investors), this collector FINDS new investors we don't have yet.
+Discovers new angel investors by searching DuckDuckGo for LinkedIn profiles
+that self-identify as angel investors. LinkedIn profiles are well-indexed
+by DDG (unlike Wellfound/Crunchbase which block crawlers).
 
 Strategy:
-1. Crawl Wellfound's role-based people directory pages
-2. Search DuckDuckGo for "site:wellfound.com angel investor" with pagination
-3. For each discovered profile, extract name/bio/location/twitter
-4. Create new Investor records (skip if slug already exists)
+1. Search DDG for site:linkedin.com/in "angel investor" with many variations
+   (sector, location, role keywords)
+2. Extract name + headline + location from DDG result snippets (no LinkedIn scraping needed)
+3. Create new Investor records for names not already in the DB
 
-Rate limit: 3 seconds between requests, stops on 403/429.
+This avoids scraping LinkedIn directly — all data comes from DDG result snippets
+which contain the person's name, headline, and often location.
+
+Rate limit: 3 seconds between DDG requests, 30s pause on rate limit.
 """
 
 import asyncio
-import json
 import logging
 import re
 import urllib.parse
@@ -25,14 +27,15 @@ from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
 from src.models import Investor
 from src.pipeline.normalizer import make_slug
 
 logger = logging.getLogger(__name__)
 
-SOURCE_KEY = "wellfound_discovery"
+SOURCE_KEY = "linkedin_angel_discovery"
 REQUEST_DELAY = 3
+RATE_LIMIT_PAUSE = 30
 MAX_INVESTORS_PER_RUN = 5000
 
 HEADERS = {
@@ -42,198 +45,186 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-# DuckDuckGo search queries to find angel investor profiles on Wellfound
+# Each DDG query returns ~20-30 results. With ~100 queries that's up to 3000 unique people.
 DISCOVERY_QUERIES = [
-    'site:wellfound.com/people "angel investor"',
-    'site:wellfound.com/people "angel" "investor"',
-    'site:wellfound.com/people "seed investor"',
-    'site:wellfound.com/people "pre-seed"',
-    'site:wellfound.com/people "startup investor"',
-    'site:wellfound.com/people "venture partner"',
-    'site:wellfound.com/people "investing in startups"',
-    'site:wellfound.com/people "angel investments"',
-    'site:wellfound.com/people "check size"',
-    'site:wellfound.com/people "portfolio companies"',
+    # Core angel investor searches
+    'site:linkedin.com/in "angel investor"',
+    'site:linkedin.com/in "angel investor" "startup"',
+    'site:linkedin.com/in "angel investor" "seed"',
+    'site:linkedin.com/in "angel investor" "pre-seed"',
+    'site:linkedin.com/in "angel investor" "early stage"',
+    'site:linkedin.com/in "angel investor" "portfolio"',
+    'site:linkedin.com/in "angel investor" "investments"',
+    'site:linkedin.com/in "seed investor"',
+    'site:linkedin.com/in "pre-seed investor"',
+    'site:linkedin.com/in "startup investor"',
+    'site:linkedin.com/in "early-stage investor"',
+    'site:linkedin.com/in "individual investor" "startups"',
+    'site:linkedin.com/in "angel" "investing in"',
+    'site:linkedin.com/in "syndicate lead"',
+    'site:linkedin.com/in "angellist syndicate"',
+    'site:linkedin.com/in "angel fund"',
+    'site:linkedin.com/in "solo GP"',
+    'site:linkedin.com/in "emerging fund manager"',
+    'site:linkedin.com/in "micro VC"',
+    'site:linkedin.com/in "venture scout"',
+    'site:linkedin.com/in "operator angel"',
+    'site:linkedin.com/in "founder angel"',
+    'site:linkedin.com/in "angel" "50+ investments"',
+    'site:linkedin.com/in "angel" "100+ investments"',
+    'site:linkedin.com/in "check writer" "startups"',
+
     # Sector-specific
-    'site:wellfound.com/people "angel investor" "fintech"',
-    'site:wellfound.com/people "angel investor" "AI"',
-    'site:wellfound.com/people "angel investor" "crypto"',
-    'site:wellfound.com/people "angel investor" "saas"',
-    'site:wellfound.com/people "angel investor" "health"',
-    'site:wellfound.com/people "angel investor" "climate"',
-    'site:wellfound.com/people "angel investor" "biotech"',
-    'site:wellfound.com/people "angel investor" "deep tech"',
-    'site:wellfound.com/people "angel investor" "consumer"',
-    'site:wellfound.com/people "angel investor" "marketplace"',
+    'site:linkedin.com/in "angel investor" "fintech"',
+    'site:linkedin.com/in "angel investor" "AI"',
+    'site:linkedin.com/in "angel investor" "artificial intelligence"',
+    'site:linkedin.com/in "angel investor" "machine learning"',
+    'site:linkedin.com/in "angel investor" "crypto"',
+    'site:linkedin.com/in "angel investor" "blockchain"',
+    'site:linkedin.com/in "angel investor" "web3"',
+    'site:linkedin.com/in "angel investor" "DeFi"',
+    'site:linkedin.com/in "angel investor" "SaaS"',
+    'site:linkedin.com/in "angel investor" "enterprise"',
+    'site:linkedin.com/in "angel investor" "healthcare"',
+    'site:linkedin.com/in "angel investor" "health tech"',
+    'site:linkedin.com/in "angel investor" "biotech"',
+    'site:linkedin.com/in "angel investor" "climate"',
+    'site:linkedin.com/in "angel investor" "cleantech"',
+    'site:linkedin.com/in "angel investor" "edtech"',
+    'site:linkedin.com/in "angel investor" "consumer"',
+    'site:linkedin.com/in "angel investor" "marketplace"',
+    'site:linkedin.com/in "angel investor" "deep tech"',
+    'site:linkedin.com/in "angel investor" "hardware"',
+    'site:linkedin.com/in "angel investor" "robotics"',
+    'site:linkedin.com/in "angel investor" "food tech"',
+    'site:linkedin.com/in "angel investor" "proptech"',
+    'site:linkedin.com/in "angel investor" "real estate tech"',
+    'site:linkedin.com/in "angel investor" "insurtech"',
+    'site:linkedin.com/in "angel investor" "developer tools"',
+    'site:linkedin.com/in "angel investor" "cybersecurity"',
+    'site:linkedin.com/in "angel investor" "gaming"',
+    'site:linkedin.com/in "angel investor" "social"',
+    'site:linkedin.com/in "angel investor" "creator economy"',
+    'site:linkedin.com/in "angel investor" "e-commerce"',
+    'site:linkedin.com/in "angel investor" "logistics"',
+    'site:linkedin.com/in "angel investor" "space"',
+    'site:linkedin.com/in "angel investor" "defense"',
+
     # Location-specific
-    'site:wellfound.com/people "angel investor" "San Francisco"',
-    'site:wellfound.com/people "angel investor" "New York"',
-    'site:wellfound.com/people "angel investor" "London"',
-    'site:wellfound.com/people "angel investor" "Singapore"',
-    'site:wellfound.com/people "angel investor" "Berlin"',
-    'site:wellfound.com/people "angel investor" "Los Angeles"',
-    'site:wellfound.com/people "angel investor" "Austin"',
-    'site:wellfound.com/people "angel investor" "Miami"',
-    'site:wellfound.com/people "angel investor" "Seattle"',
-    'site:wellfound.com/people "angel investor" "Boston"',
-    # Syndicate leaders
-    'site:wellfound.com/people "syndicate"',
-    'site:wellfound.com/people "syndicate lead"',
-    'site:wellfound.com/people "angellist syndicate"',
-    # Operator angels
-    'site:wellfound.com/people "founder" "angel"',
-    'site:wellfound.com/people "exited" "angel"',
-    'site:wellfound.com/people "operator" "investor"',
+    'site:linkedin.com/in "angel investor" "San Francisco"',
+    'site:linkedin.com/in "angel investor" "New York"',
+    'site:linkedin.com/in "angel investor" "Los Angeles"',
+    'site:linkedin.com/in "angel investor" "Austin"',
+    'site:linkedin.com/in "angel investor" "Miami"',
+    'site:linkedin.com/in "angel investor" "Seattle"',
+    'site:linkedin.com/in "angel investor" "Boston"',
+    'site:linkedin.com/in "angel investor" "Chicago"',
+    'site:linkedin.com/in "angel investor" "Denver"',
+    'site:linkedin.com/in "angel investor" "San Diego"',
+    'site:linkedin.com/in "angel investor" "Portland"',
+    'site:linkedin.com/in "angel investor" "Atlanta"',
+    'site:linkedin.com/in "angel investor" "Dallas"',
+    'site:linkedin.com/in "angel investor" "Washington DC"',
+    'site:linkedin.com/in "angel investor" "London"',
+    'site:linkedin.com/in "angel investor" "Berlin"',
+    'site:linkedin.com/in "angel investor" "Paris"',
+    'site:linkedin.com/in "angel investor" "Singapore"',
+    'site:linkedin.com/in "angel investor" "Tel Aviv"',
+    'site:linkedin.com/in "angel investor" "Dubai"',
+    'site:linkedin.com/in "angel investor" "Toronto"',
+    'site:linkedin.com/in "angel investor" "Mumbai"',
+    'site:linkedin.com/in "angel investor" "Bangalore"',
+    'site:linkedin.com/in "angel investor" "Sydney"',
+    'site:linkedin.com/in "angel investor" "Tokyo"',
+    'site:linkedin.com/in "angel investor" "Seoul"',
+    'site:linkedin.com/in "angel investor" "São Paulo"',
+    'site:linkedin.com/in "angel investor" "Lagos"',
+    'site:linkedin.com/in "angel investor" "Nairobi"',
+    'site:linkedin.com/in "angel investor" "Amsterdam"',
+    'site:linkedin.com/in "angel investor" "Stockholm"',
 ]
 
-# Direct Wellfound directory URLs to crawl
-WELLFOUND_DIRECTORY_URLS = [
-    "https://wellfound.com/people/investors",
-    "https://wellfound.com/people?role=investor",
-    "https://wellfound.com/people?role=angel",
-    "https://wellfound.com/discover/people?role=investor",
-]
 
-
-class WellfoundAngelDiscovery(BaseEnricher):
-    """Discover new angel investors from Wellfound/AngelList profiles."""
+class LinkedInAngelDiscovery(BaseEnricher):
+    """Discover new angel investors from LinkedIn profiles via DuckDuckGo search."""
 
     def source_name(self) -> str:
         return SOURCE_KEY
 
     async def enrich(self, session: AsyncSession) -> EnrichmentResult:
         result = EnrichmentResult(source=self.source_name())
-
-        # Track discovered URLs to avoid duplicate scrapes within a run
-        discovered_urls: set[str] = set()
         created_slugs: set[str] = set()
+        seen_names: set[str] = set()
+        rate_limit_count = 0
 
         async with httpx.AsyncClient(
             timeout=20,
             headers=HEADERS,
             follow_redirects=True,
         ) as client:
-            # Phase 1: Try Wellfound directory pages directly
-            for url in WELLFOUND_DIRECTORY_URLS:
-                if len(created_slugs) >= MAX_INVESTORS_PER_RUN:
-                    break
-                try:
-                    profile_urls = await self._crawl_directory_page(client, url)
-                    discovered_urls.update(profile_urls)
-                    await asyncio.sleep(REQUEST_DELAY)
-                except _RateLimitedError:
-                    logger.warning(f"[{SOURCE_KEY}] Rate limited on directory crawl, moving to search")
-                    break
-                except Exception as e:
-                    logger.debug(f"[{SOURCE_KEY}] Directory page error {url}: {e}")
-
-            # Phase 2: DuckDuckGo search discovery
             for query in DISCOVERY_QUERIES:
                 if len(created_slugs) >= MAX_INVESTORS_PER_RUN:
                     break
+                if rate_limit_count >= 3:
+                    logger.warning(f"[{SOURCE_KEY}] Hit DDG rate limit 3 times, stopping")
+                    break
+
                 try:
-                    urls = await self._search_ddg(client, query)
-                    new_urls = [u for u in urls if u not in discovered_urls]
-                    discovered_urls.update(new_urls)
-                    logger.info(f"[{SOURCE_KEY}] Query '{query[:50]}...' found {len(new_urls)} new URLs")
+                    people = await self._search_ddg(client, query)
+                    new_count = 0
+                    for person in people:
+                        if len(created_slugs) >= MAX_INVESTORS_PER_RUN:
+                            break
+                        name = person.get("name")
+                        if not name or name in seen_names:
+                            continue
+                        seen_names.add(name)
+
+                        try:
+                            created = await self._create_investor(
+                                session, person, created_slugs
+                            )
+                            if created:
+                                new_count += 1
+                                result.records_updated += 1
+                            else:
+                                result.records_skipped += 1
+                        except Exception as e:
+                            result.errors.append(f"{name}: {e}")
+
+                    if new_count > 0:
+                        logger.info(
+                            f"[{SOURCE_KEY}] '{query[:60]}' → "
+                            f"{len(people)} results, {new_count} new"
+                        )
+
                 except _RateLimitedError:
-                    logger.warning(f"[{SOURCE_KEY}] DDG rate limited, pausing 30s")
-                    await asyncio.sleep(30)
+                    rate_limit_count += 1
+                    logger.warning(
+                        f"[{SOURCE_KEY}] DDG rate limited ({rate_limit_count}/3), "
+                        f"pausing {RATE_LIMIT_PAUSE}s"
+                    )
+                    await asyncio.sleep(RATE_LIMIT_PAUSE)
                     continue
                 except Exception as e:
-                    logger.debug(f"[{SOURCE_KEY}] Search error: {e}")
-
-                await asyncio.sleep(REQUEST_DELAY)
-
-            # Phase 3: Scrape each discovered profile
-            logger.info(f"[{SOURCE_KEY}] Scraping {len(discovered_urls)} discovered profiles")
-
-            for url in discovered_urls:
-                if len(created_slugs) >= MAX_INVESTORS_PER_RUN:
-                    break
-                try:
-                    created = await self._scrape_and_create(
-                        client, session, url, created_slugs
-                    )
-                    if created:
-                        result.records_updated += 1
-                    else:
-                        result.records_skipped += 1
-                except _RateLimitedError:
-                    logger.warning(f"[{SOURCE_KEY}] Rate limited on scrape, stopping")
-                    result.errors.append("Rate limited during scraping")
-                    break
-                except Exception as e:
-                    result.errors.append(f"{url}: {e}")
+                    result.errors.append(f"Query error: {e}")
 
                 await asyncio.sleep(REQUEST_DELAY)
 
         await session.flush()
         logger.info(
             f"[{SOURCE_KEY}] Done: {result.records_updated} new investors, "
-            f"{result.records_skipped} skipped, {len(result.errors)} errors. "
-            f"Total URLs discovered: {len(discovered_urls)}"
+            f"{result.records_skipped} skipped, {len(result.errors)} errors"
         )
         return result
 
-    async def _crawl_directory_page(
-        self, client: httpx.AsyncClient, url: str
-    ) -> list[str]:
-        """Crawl a Wellfound directory/listing page for profile URLs."""
-        resp = await client.get(url)
-        if resp.status_code in (403, 429):
-            raise _RateLimitedError()
-        if resp.status_code != 200:
-            return []
-
-        soup = BeautifulSoup(resp.text, "html.parser")
-        profile_urls = []
-
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            if "/people/" in href and href.count("/") >= 2:
-                # Normalize to absolute URL
-                if href.startswith("/"):
-                    href = f"https://wellfound.com{href}"
-                if "wellfound.com/people/" in href:
-                    # Skip generic pages
-                    path = href.split("/people/")[-1].split("?")[0].split("#")[0]
-                    if path and path not in ("investors", "founders", ""):
-                        profile_urls.append(href.split("?")[0])
-
-        # Also check for Next.js __NEXT_DATA__ JSON
-        script = soup.find("script", id="__NEXT_DATA__")
-        if script and script.string:
-            try:
-                data = json.loads(script.string)
-                self._extract_urls_from_json(data, profile_urls)
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-        return profile_urls
-
-    def _extract_urls_from_json(self, obj, urls: list, depth: int = 0) -> None:
-        """Recursively extract people URLs from nested JSON data."""
-        if depth > 10:
-            return
-        if isinstance(obj, dict):
-            for key, val in obj.items():
-                if key in ("slug", "permalink") and isinstance(val, str) and len(val) > 2:
-                    candidate = f"https://wellfound.com/people/{val}"
-                    if candidate not in urls:
-                        urls.append(candidate)
-                else:
-                    self._extract_urls_from_json(val, urls, depth + 1)
-        elif isinstance(obj, list):
-            for item in obj:
-                self._extract_urls_from_json(item, urls, depth + 1)
-
     async def _search_ddg(
         self, client: httpx.AsyncClient, query: str
-    ) -> list[str]:
-        """Search DuckDuckGo and extract Wellfound profile URLs from results."""
-        urls = []
+    ) -> list[dict]:
+        """Search DDG and extract people data from result snippets.
 
+        Returns list of dicts with keys: name, headline, location, linkedin_url
+        """
         resp = await client.get(
             "https://html.duckduckgo.com/html/",
             params={"q": query},
@@ -241,68 +232,165 @@ class WellfoundAngelDiscovery(BaseEnricher):
         if resp.status_code in (403, 429):
             raise _RateLimitedError()
         if resp.status_code != 200:
-            return urls
+            return []
 
         soup = BeautifulSoup(resp.text, "html.parser")
-        for link in soup.select("a.result__a"):
+        people = []
+
+        for result_div in soup.select(".result"):
+            link = result_div.select_one("a.result__a")
+            snippet = result_div.select_one(".result__snippet")
+            if not link:
+                continue
+
             href = link.get("href", "")
-            # DuckDuckGo wraps URLs
+            # Extract actual URL from DDG redirect
             url_match = re.search(r"uddg=([^&]+)", href)
             if url_match:
                 actual_url = urllib.parse.unquote(url_match.group(1))
             else:
                 actual_url = href
 
-            if "wellfound.com/people/" in actual_url:
-                clean = actual_url.split("?")[0]
-                path = clean.split("/people/")[-1]
-                if path and path not in ("investors", "founders", ""):
-                    urls.append(clean)
+            # Only LinkedIn profile URLs
+            if "linkedin.com/in/" not in actual_url:
+                continue
 
-        return urls
+            # Extract name from link text
+            # DDG shows: "FirstName LastName - Title - Location | LinkedIn"
+            link_text = link.get_text(strip=True)
+            name = self._extract_name_from_title(link_text)
+            if not name:
+                continue
 
-    async def _scrape_and_create(
+            # Extract headline/description from snippet
+            headline = None
+            location = None
+            if snippet:
+                snippet_text = snippet.get_text(strip=True)
+                headline = self._extract_headline(snippet_text)
+                location = self._extract_location(snippet_text, link_text)
+
+            people.append({
+                "name": name,
+                "headline": headline,
+                "location": location,
+                "linkedin_url": actual_url.split("?")[0],
+            })
+
+        return people
+
+    def _extract_name_from_title(self, title: str) -> str | None:
+        """Extract person name from DDG result title.
+
+        Titles look like:
+        - "John Smith - Angel Investor - San Francisco | LinkedIn"
+        - "Jane Doe | LinkedIn"
+        - "John Smith - Founder & Angel Investor"
+        """
+        if not title:
+            return None
+
+        # Remove LinkedIn suffix
+        title = re.sub(r"\s*\|\s*LinkedIn\s*$", "", title, flags=re.IGNORECASE)
+
+        # Take first part before " - "
+        name = title.split(" - ")[0].strip()
+
+        # Remove common prefixes/suffixes
+        name = re.sub(r"\s*\(.*?\)\s*", "", name)  # Remove parenthetical
+        name = re.sub(r",.*$", "", name)  # Remove after comma (credentials)
+        name = name.strip()
+
+        # Validate: should be 2-5 words, no numbers, reasonable length
+        if not name or len(name) < 3 or len(name) > 100:
+            return None
+
+        words = name.split()
+        if len(words) < 2 or len(words) > 6:
+            return None
+
+        # Must start with uppercase
+        if not words[0][0].isupper():
+            return None
+
+        # No numbers (skip "2nd", "3rd" connection results)
+        if re.search(r"\d", name):
+            return None
+
+        return name
+
+    def _extract_headline(self, snippet: str) -> str | None:
+        """Extract headline/description from DDG snippet."""
+        if not snippet or len(snippet) < 10:
+            return None
+
+        # Limit to reasonable length
+        headline = snippet[:500].strip()
+
+        # Remove common DDG noise
+        headline = re.sub(r"^View .+'s profile on LinkedIn.*?\.", "", headline).strip()
+        headline = re.sub(r"^LinkedIn.*?\.", "", headline).strip()
+
+        if len(headline) > 20:
+            return headline
+        return None
+
+    def _extract_location(self, snippet: str, title: str) -> str | None:
+        """Try to extract location from snippet or title."""
+        # Common city patterns in LinkedIn titles: "Name - Role - City, State"
+        parts = title.split(" - ")
+        if len(parts) >= 3:
+            candidate = parts[-1].strip()
+            candidate = re.sub(r"\s*\|\s*LinkedIn\s*$", "", candidate, flags=re.IGNORECASE).strip()
+            # Looks like a location (has comma or known city pattern)
+            if "," in candidate and len(candidate) < 80:
+                return candidate
+            # Known metro areas
+            metros = [
+                "San Francisco", "New York", "Los Angeles", "Austin", "Miami",
+                "Seattle", "Boston", "Chicago", "Denver", "London", "Berlin",
+                "Singapore", "Toronto", "Tel Aviv", "Dubai", "Mumbai",
+                "Bangalore", "Sydney", "Tokyo", "Seoul", "Paris", "Amsterdam",
+                "Stockholm", "São Paulo", "Lagos", "Nairobi", "Portland",
+                "San Diego", "Atlanta", "Dallas", "Washington",
+            ]
+            if any(metro.lower() in candidate.lower() for metro in metros):
+                return candidate
+
+        # Check snippet for "Location: X" or "Greater X Area"
+        loc_match = re.search(r"Greater (\w[\w\s]+) Area", snippet)
+        if loc_match:
+            return loc_match.group(0)
+
+        return None
+
+    async def _create_investor(
         self,
-        client: httpx.AsyncClient,
         session: AsyncSession,
-        url: str,
+        person: dict,
         created_slugs: set[str],
     ) -> bool:
-        """Scrape a Wellfound profile and create an Investor if new."""
-        resp = await client.get(url)
-        if resp.status_code in (403, 429):
-            raise _RateLimitedError()
-        if resp.status_code != 200:
-            return False
-
-        html = resp.text
-        soup = BeautifulSoup(html, "html.parser")
-
-        # Extract name
-        name = self._extract_name(soup, html)
-        if not name or len(name) < 2 or len(name) > 200:
-            return False
-
+        """Create an Investor record if the person doesn't already exist."""
+        name = person["name"]
         slug = make_slug(name)
+
         if not slug or slug in created_slugs:
             return False
 
-        # Check if already exists
+        # Check DB
         existing = await session.execute(
             select(Investor.id).where(Investor.slug == slug)
         )
         if existing.scalar_one_or_none() is not None:
             return False
 
-        # Verify this person is actually an investor
-        if not self._is_investor(html):
-            return False
+        description = person.get("headline")
+        location = person.get("location")
+        linkedin_url = person.get("linkedin_url")
 
-        # Extract profile data
-        description = self._extract_description(soup, html)
-        location = self._extract_location(soup, html)
-        twitter = self._extract_twitter(soup, html)
-        website = self._extract_website(soup)
+        freshness = {SOURCE_KEY: datetime.now(timezone.utc).isoformat()}
+        if linkedin_url:
+            freshness["linkedin_url"] = linkedin_url
 
         investor = Investor(
             name=name,
@@ -310,144 +398,13 @@ class WellfoundAngelDiscovery(BaseEnricher):
             type="angel",
             description=description[:2000] if description else None,
             hq_location=location[:200] if location else None,
-            twitter=twitter[:200] if twitter else None,
-            website=website,
             investor_category="angel_investor",
-            source_freshness={
-                SOURCE_KEY: datetime.now(timezone.utc).isoformat(),
-                "wellfound_url": url,
-            },
+            source_freshness=freshness,
             last_enriched_at=datetime.now(timezone.utc),
         )
         session.add(investor)
         created_slugs.add(slug)
         return True
-
-    def _extract_name(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract person's name from the profile page."""
-        # og:title meta tag
-        meta = soup.find("meta", attrs={"property": "og:title"})
-        if meta and meta.get("content"):
-            title = meta["content"].strip()
-            # Wellfound titles often have "Name - Role" or "Name | Wellfound"
-            name = re.split(r"\s*[-|–—]\s*", title)[0].strip()
-            if name and len(name) > 1:
-                return name
-
-        # <title> tag
-        title_tag = soup.find("title")
-        if title_tag:
-            title = title_tag.get_text(strip=True)
-            name = re.split(r"\s*[-|–—]\s*", title)[0].strip()
-            if name and len(name) > 1:
-                return name
-
-        # h1 tag (usually the name on profile pages)
-        h1 = soup.find("h1")
-        if h1:
-            name = h1.get_text(strip=True)
-            if name and 1 < len(name) < 100:
-                return name
-
-        # JSON-LD
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if isinstance(data, dict) and data.get("name"):
-                    return data["name"]
-            except (json.JSONDecodeError, TypeError):
-                continue
-
-        return None
-
-    def _is_investor(self, html: str) -> bool:
-        """Check if the page content suggests this person is an investor."""
-        lower = html.lower()
-        investor_signals = [
-            "angel investor", "angel investing", "seed investor",
-            "pre-seed", "venture partner", "syndicate",
-            "portfolio companies", "investments include",
-            "invested in", "backed by", "startup investor",
-            "check size", "investing in startups", "angel fund",
-            "limited partner", "lp in", "scout",
-        ]
-        return any(signal in lower for signal in investor_signals)
-
-    def _extract_description(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract bio/description."""
-        meta = soup.find("meta", attrs={"property": "og:description"})
-        if meta and meta.get("content"):
-            content = meta["content"].strip()
-            if len(content) > 20:
-                return content
-
-        meta = soup.find("meta", attrs={"name": "description"})
-        if meta and meta.get("content"):
-            content = meta["content"].strip()
-            if len(content) > 20:
-                return content
-
-        for selector in [
-            "[data-testid='bio']", ".bio", ".about-section",
-            ".profile-bio", "[class*='biography']", "[class*='about']",
-        ]:
-            el = soup.select_one(selector)
-            if el:
-                text = el.get_text(strip=True)
-                if len(text) > 20:
-                    return text
-
-        return None
-
-    def _extract_location(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract location."""
-        match = re.search(r'"addressLocality":\s*"([^"]+)"', html)
-        if match:
-            return match.group(1).strip()
-
-        for selector in [
-            "[data-testid='location']", ".location", "[class*='location']",
-        ]:
-            el = soup.select_one(selector)
-            if el:
-                text = el.get_text(strip=True)
-                if text and len(text) < 100:
-                    return text
-
-        return None
-
-    def _extract_twitter(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract Twitter handle."""
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)/?$", href)
-            if match:
-                handle = match.group(1)
-                if handle.lower() not in ("share", "intent", "home", "search"):
-                    return f"@{handle}"
-
-        match = re.search(r'(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})', html)
-        if match:
-            handle = match.group(1)
-            if handle.lower() not in ("share", "intent", "home", "search"):
-                return f"@{handle}"
-
-        return None
-
-    def _extract_website(self, soup: BeautifulSoup) -> str | None:
-        """Extract website URL."""
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            text = link.get_text(strip=True).lower()
-            if any(d in href for d in [
-                "wellfound.com", "angellist.com", "twitter.com", "x.com",
-                "linkedin.com", "facebook.com", "github.com",
-            ]):
-                continue
-            if text in ("website", "site", "homepage") or "website" in text:
-                if href.startswith("http"):
-                    return href
-        return None
 
 
 class _RateLimitedError(Exception):

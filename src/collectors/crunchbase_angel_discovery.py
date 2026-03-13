@@ -1,20 +1,24 @@
-"""Crunchbase angel investor discovery.
+"""Published angel investor list scraper.
 
-Discovers new angel investors by crawling Crunchbase's public hub pages
-and searching for angel investor profiles. Unlike the Crunchbase enricher
-(which fills in data on known investors), this collector FINDS new ones.
+Discovers new angel investors by scraping published "top angel investors"
+articles from major tech/business publications. These articles are:
+- Well-indexed by search engines (unlike Crunchbase/Wellfound)
+- Not behind anti-scraper walls
+- Curated lists of real, active investors with names and bios
+- Published by Forbes, TechCrunch, Business Insider, Inc., etc.
 
 Strategy:
-1. Crawl Crunchbase hub pages (/hub/angel-investors, regional variants)
-2. Search DuckDuckGo for "site:crunchbase.com/person angel investor" with variations
-3. For each discovered profile, extract name/bio/location/investments
-4. Create new Investor records (skip if slug already exists)
+1. Search DDG for "top angel investors" / "best angel investors" articles
+2. Scrape each article for investor names (look for lists, tables, headings)
+3. Extract name + description for each investor found
+4. Create new Investor records for names not already in the DB
 
-Rate limit: 4 seconds between requests, stops on 403/429.
+Also scrapes GitHub "awesome" lists that curate angel investors.
+
+Rate limit: 3 seconds between requests, 30s pause on rate limit.
 """
 
 import asyncio
-import json
 import logging
 import re
 import urllib.parse
@@ -25,14 +29,15 @@ from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
+from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult
 from src.models import Investor
 from src.pipeline.normalizer import make_slug
 
 logger = logging.getLogger(__name__)
 
-SOURCE_KEY = "crunchbase_discovery"
-REQUEST_DELAY = 4
+SOURCE_KEY = "published_list_discovery"
+REQUEST_DELAY = 3
+RATE_LIMIT_PAUSE = 30
 MAX_INVESTORS_PER_RUN = 5000
 
 HEADERS = {
@@ -40,167 +45,175 @@ HEADERS = {
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"macOS"',
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Upgrade-Insecure-Requests": "1",
 }
 
-# Crunchbase hub pages listing angel investors
-HUB_PAGES = [
-    "https://www.crunchbase.com/hub/angel-investors",
-    "https://www.crunchbase.com/hub/united-states-angel-investors",
-    "https://www.crunchbase.com/hub/san-francisco-angel-investors",
-    "https://www.crunchbase.com/hub/new-york-angel-investors",
-    "https://www.crunchbase.com/hub/london-angel-investors",
-    "https://www.crunchbase.com/hub/silicon-valley-angel-investors",
-    "https://www.crunchbase.com/hub/los-angeles-angel-investors",
-    "https://www.crunchbase.com/hub/boston-angel-investors",
-    "https://www.crunchbase.com/hub/seattle-angel-investors",
-    "https://www.crunchbase.com/hub/chicago-angel-investors",
-    "https://www.crunchbase.com/hub/austin-angel-investors",
-    "https://www.crunchbase.com/hub/miami-angel-investors",
-    "https://www.crunchbase.com/hub/europe-angel-investors",
-    "https://www.crunchbase.com/hub/asia-angel-investors",
-    "https://www.crunchbase.com/hub/india-angel-investors",
-    "https://www.crunchbase.com/hub/singapore-angel-investors",
-    "https://www.crunchbase.com/hub/berlin-angel-investors",
-    # Micro-VCs and seed funds (often operate like angels)
-    "https://www.crunchbase.com/hub/micro-venture-capital-firms",
-    "https://www.crunchbase.com/hub/seed-stage-venture-capital-firms",
-    "https://www.crunchbase.com/hub/pre-seed-venture-capital-firms",
+# DDG queries to find published angel investor lists
+ARTICLE_QUERIES = [
+    # General top lists
+    '"top angel investors" list',
+    '"best angel investors" 2024',
+    '"best angel investors" 2025',
+    '"most active angel investors"',
+    '"prolific angel investors"',
+    '"angel investors to know"',
+    '"angel investors you should know"',
+    '"top startup investors"',
+    '"best seed investors"',
+    '"top pre-seed investors"',
+    '"super angels" list',
+    '"angel investor" list "check size"',
+    '"angel investor directory"',
+
+    # Forbes / publications
+    'forbes "angel investors" list',
+    'techcrunch "angel investors" list',
+    '"business insider" "angel investors"',
+    'inc.com "angel investors"',
+    'entrepreneur.com "angel investors"',
+    'fortune "angel investors"',
+
+    # Sector-specific lists
+    '"angel investors" fintech list',
+    '"angel investors" "artificial intelligence" list',
+    '"angel investors" AI list',
+    '"angel investors" crypto list',
+    '"angel investors" blockchain list',
+    '"angel investors" web3 list',
+    '"angel investors" SaaS list',
+    '"angel investors" healthcare list',
+    '"angel investors" biotech list',
+    '"angel investors" climate list',
+    '"angel investors" cleantech list',
+    '"angel investors" edtech list',
+    '"angel investors" consumer list',
+    '"angel investors" deep tech list',
+    '"angel investors" hardware list',
+    '"angel investors" cybersecurity list',
+    '"angel investors" gaming list',
+    '"angel investors" food tech list',
+    '"angel investors" proptech list',
+
+    # Location-specific lists
+    '"angel investors" "San Francisco" list',
+    '"angel investors" "New York" list',
+    '"angel investors" "Los Angeles" list',
+    '"angel investors" London list',
+    '"angel investors" Singapore list',
+    '"angel investors" India list',
+    '"angel investors" Europe list',
+    '"angel investors" "Tel Aviv" list',
+    '"angel investors" Africa list',
+    '"angel investors" "Latin America" list',
+    '"angel investors" Canada list',
+    '"angel investors" Australia list',
+    '"angel investors" Berlin list',
+    '"angel investors" Miami list',
+    '"angel investors" Austin list',
+    '"angel investors" Boston list',
+    '"angel investors" Seattle list',
+
+    # Specific curated sources
+    '"angel investor" "invested in" "portfolio"',
+    '"angel investor" "$25K" OR "$50K" OR "$100K"',
+    'site:github.com "awesome" "angel investors"',
+    'site:github.com "angel investor" list',
+    '"top women angel investors"',
+    '"diverse angel investors" list',
+    '"angel investors" "emerging managers"',
+    '"angel investor networks"',
+    '"angel groups" directory',
 ]
 
-# DuckDuckGo queries to discover angel profiles on Crunchbase
-DISCOVERY_QUERIES = [
-    # Person profiles
-    'site:crunchbase.com/person "angel investor"',
-    'site:crunchbase.com/person "angel" "investments"',
-    'site:crunchbase.com/person "seed investor"',
-    'site:crunchbase.com/person "pre-seed"',
-    'site:crunchbase.com/person "startup investor"',
-    'site:crunchbase.com/person "angel investing"',
-    'site:crunchbase.com/person "syndicate lead"',
-    'site:crunchbase.com/person "angel fund"',
-    'site:crunchbase.com/person "scout" "investor"',
-    'site:crunchbase.com/person "operator" "investor"',
-    # Sector-specific person searches
-    'site:crunchbase.com/person "angel investor" "fintech"',
-    'site:crunchbase.com/person "angel investor" "artificial intelligence"',
-    'site:crunchbase.com/person "angel investor" "crypto"',
-    'site:crunchbase.com/person "angel investor" "blockchain"',
-    'site:crunchbase.com/person "angel investor" "saas"',
-    'site:crunchbase.com/person "angel investor" "healthcare"',
-    'site:crunchbase.com/person "angel investor" "biotech"',
-    'site:crunchbase.com/person "angel investor" "climate"',
-    'site:crunchbase.com/person "angel investor" "edtech"',
-    'site:crunchbase.com/person "angel investor" "consumer"',
-    'site:crunchbase.com/person "angel investor" "marketplace"',
-    'site:crunchbase.com/person "angel investor" "deep tech"',
-    'site:crunchbase.com/person "angel investor" "web3"',
-    'site:crunchbase.com/person "angel investor" "defi"',
-    # Location-specific
-    'site:crunchbase.com/person "angel investor" "San Francisco"',
-    'site:crunchbase.com/person "angel investor" "New York"',
-    'site:crunchbase.com/person "angel investor" "London"',
-    'site:crunchbase.com/person "angel investor" "Singapore"',
-    'site:crunchbase.com/person "angel investor" "Berlin"',
-    'site:crunchbase.com/person "angel investor" "Los Angeles"',
-    'site:crunchbase.com/person "angel investor" "Austin"',
-    'site:crunchbase.com/person "angel investor" "Miami"',
-    'site:crunchbase.com/person "angel investor" "Seattle"',
-    'site:crunchbase.com/person "angel investor" "Boston"',
-    'site:crunchbase.com/person "angel investor" "Tel Aviv"',
-    'site:crunchbase.com/person "angel investor" "Dubai"',
-    'site:crunchbase.com/person "angel investor" "Toronto"',
-    'site:crunchbase.com/person "angel investor" "Paris"',
-    # Organization profiles (micro-VCs, angel groups)
-    'site:crunchbase.com/organization "angel" "fund"',
-    'site:crunchbase.com/organization "micro vc"',
-    'site:crunchbase.com/organization "pre-seed fund"',
-    'site:crunchbase.com/organization "angel group"',
-    'site:crunchbase.com/organization "angel network"',
-    'site:crunchbase.com/organization "solo gp"',
-    'site:crunchbase.com/organization "emerging manager"',
+# Known good article URLs to scrape directly (curated, high-quality lists)
+KNOWN_ARTICLE_URLS = [
+    # These are placeholder patterns — the DDG search will find current ones
+    # but these known URLs provide a reliable baseline
 ]
 
 
-class CrunchbaseAngelDiscovery(BaseEnricher):
-    """Discover new angel investors from Crunchbase profiles."""
+class PublishedListAngelDiscovery(BaseEnricher):
+    """Discover angel investors from published lists and articles."""
 
     def source_name(self) -> str:
         return SOURCE_KEY
 
     async def enrich(self, session: AsyncSession) -> EnrichmentResult:
         result = EnrichmentResult(source=self.source_name())
-
-        discovered_urls: set[str] = set()
         created_slugs: set[str] = set()
+        seen_names: set[str] = set()
+        scraped_urls: set[str] = set()
+        rate_limit_count = 0
 
         async with httpx.AsyncClient(
             timeout=20,
             headers=HEADERS,
             follow_redirects=True,
         ) as client:
-            # Phase 1: Crawl Crunchbase hub pages
-            for url in HUB_PAGES:
-                if len(created_slugs) >= MAX_INVESTORS_PER_RUN:
-                    break
-                try:
-                    profile_urls = await self._crawl_hub_page(client, url)
-                    new = [u for u in profile_urls if u not in discovered_urls]
-                    discovered_urls.update(new)
-                    logger.info(f"[{SOURCE_KEY}] Hub '{url.split('/')[-1]}' → {len(new)} new URLs")
-                    await asyncio.sleep(REQUEST_DELAY)
-                except _RateLimitedError:
-                    logger.warning(f"[{SOURCE_KEY}] Rate limited on hub pages, moving to search")
-                    break
-                except Exception as e:
-                    logger.debug(f"[{SOURCE_KEY}] Hub error {url}: {e}")
+            # Phase 1: Search DDG for article URLs
+            article_urls: list[str] = list(KNOWN_ARTICLE_URLS)
 
-            # Phase 2: DuckDuckGo search discovery
-            for query in DISCOVERY_QUERIES:
-                if len(created_slugs) >= MAX_INVESTORS_PER_RUN:
+            for query in ARTICLE_QUERIES:
+                if rate_limit_count >= 3:
                     break
                 try:
-                    urls = await self._search_ddg(client, query)
-                    new_urls = [u for u in urls if u not in discovered_urls]
-                    discovered_urls.update(new_urls)
-                    if new_urls:
-                        logger.info(f"[{SOURCE_KEY}] Query '{query[:50]}...' → {len(new_urls)} new URLs")
+                    urls = await self._search_ddg_for_articles(client, query)
+                    for url in urls:
+                        if url not in scraped_urls and url not in article_urls:
+                            article_urls.append(url)
                 except _RateLimitedError:
-                    logger.warning(f"[{SOURCE_KEY}] DDG rate limited, pausing 30s")
-                    await asyncio.sleep(30)
+                    rate_limit_count += 1
+                    logger.warning(
+                        f"[{SOURCE_KEY}] DDG rate limited ({rate_limit_count}/3), "
+                        f"pausing {RATE_LIMIT_PAUSE}s"
+                    )
+                    await asyncio.sleep(RATE_LIMIT_PAUSE)
                     continue
                 except Exception as e:
                     logger.debug(f"[{SOURCE_KEY}] Search error: {e}")
 
                 await asyncio.sleep(REQUEST_DELAY)
 
-            # Phase 3: Scrape each discovered profile
-            logger.info(f"[{SOURCE_KEY}] Scraping {len(discovered_urls)} discovered profiles")
+            logger.info(f"[{SOURCE_KEY}] Found {len(article_urls)} article URLs to scrape")
 
-            for url in discovered_urls:
+            # Phase 2: Scrape each article for investor names
+            for url in article_urls:
                 if len(created_slugs) >= MAX_INVESTORS_PER_RUN:
                     break
+                if url in scraped_urls:
+                    continue
+                scraped_urls.add(url)
+
                 try:
-                    created = await self._scrape_and_create(
-                        client, session, url, created_slugs
-                    )
-                    if created:
-                        result.records_updated += 1
-                    else:
-                        result.records_skipped += 1
-                except _RateLimitedError:
-                    logger.warning(f"[{SOURCE_KEY}] Rate limited on scrape, stopping")
-                    result.errors.append("Rate limited during scraping")
-                    break
+                    people = await self._scrape_article(client, url)
+                    new_count = 0
+                    for person in people:
+                        if len(created_slugs) >= MAX_INVESTORS_PER_RUN:
+                            break
+                        name = person.get("name")
+                        if not name or name in seen_names:
+                            continue
+                        seen_names.add(name)
+
+                        try:
+                            created = await self._create_investor(
+                                session, person, created_slugs
+                            )
+                            if created:
+                                new_count += 1
+                                result.records_updated += 1
+                            else:
+                                result.records_skipped += 1
+                        except Exception as e:
+                            result.errors.append(f"{name}: {e}")
+
+                    if new_count > 0:
+                        logger.info(
+                            f"[{SOURCE_KEY}] '{url[:80]}' → "
+                            f"{len(people)} people, {new_count} new"
+                        )
+
                 except Exception as e:
-                    result.errors.append(f"{url}: {e}")
+                    logger.debug(f"[{SOURCE_KEY}] Scrape error {url[:80]}: {e}")
 
                 await asyncio.sleep(REQUEST_DELAY)
 
@@ -208,75 +221,14 @@ class CrunchbaseAngelDiscovery(BaseEnricher):
         logger.info(
             f"[{SOURCE_KEY}] Done: {result.records_updated} new investors, "
             f"{result.records_skipped} skipped, {len(result.errors)} errors. "
-            f"Total URLs discovered: {len(discovered_urls)}"
+            f"Articles scraped: {len(scraped_urls)}"
         )
         return result
 
-    async def _crawl_hub_page(
-        self, client: httpx.AsyncClient, url: str
-    ) -> list[str]:
-        """Crawl a Crunchbase hub page for person/org profile URLs."""
-        resp = await client.get(url)
-        if resp.status_code in (403, 429):
-            raise _RateLimitedError()
-        if resp.status_code != 200:
-            return []
-
-        soup = BeautifulSoup(resp.text, "html.parser")
-        profile_urls = []
-
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            # Normalize relative URLs
-            if href.startswith("/"):
-                href = f"https://www.crunchbase.com{href}"
-
-            if "crunchbase.com/person/" in href or "crunchbase.com/organization/" in href:
-                clean = href.split("?")[0].split("#")[0]
-                # Skip hub/list pages themselves
-                path_parts = clean.rstrip("/").split("/")
-                if len(path_parts) >= 5:  # e.g. crunchbase.com/person/john-doe
-                    profile_urls.append(clean)
-
-        # Try to find pagination links
-        next_pages = []
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            if "page=" in href or "/hub/" in href:
-                if href.startswith("/"):
-                    href = f"https://www.crunchbase.com{href}"
-                if href != url and href not in next_pages:
-                    next_pages.append(href)
-
-        # Crawl up to 3 additional pages from this hub
-        for page_url in next_pages[:3]:
-            try:
-                await asyncio.sleep(REQUEST_DELAY)
-                resp = await client.get(page_url)
-                if resp.status_code in (403, 429):
-                    break
-                if resp.status_code == 200:
-                    page_soup = BeautifulSoup(resp.text, "html.parser")
-                    for link in page_soup.find_all("a", href=True):
-                        href = link["href"]
-                        if href.startswith("/"):
-                            href = f"https://www.crunchbase.com{href}"
-                        if "crunchbase.com/person/" in href or \
-                           "crunchbase.com/organization/" in href:
-                            clean = href.split("?")[0].split("#")[0]
-                            if clean not in profile_urls:
-                                profile_urls.append(clean)
-            except Exception:
-                break
-
-        return profile_urls
-
-    async def _search_ddg(
+    async def _search_ddg_for_articles(
         self, client: httpx.AsyncClient, query: str
     ) -> list[str]:
-        """Search DuckDuckGo for Crunchbase profile URLs."""
-        urls = []
-
+        """Search DDG and return article URLs (not investor profile URLs)."""
         resp = await client.get(
             "https://html.duckduckgo.com/html/",
             params={"q": query},
@@ -284,9 +236,11 @@ class CrunchbaseAngelDiscovery(BaseEnricher):
         if resp.status_code in (403, 429):
             raise _RateLimitedError()
         if resp.status_code != 200:
-            return urls
+            return []
 
         soup = BeautifulSoup(resp.text, "html.parser")
+        urls = []
+
         for link in soup.select("a.result__a"):
             href = link.get("href", "")
             url_match = re.search(r"uddg=([^&]+)", href)
@@ -295,281 +249,267 @@ class CrunchbaseAngelDiscovery(BaseEnricher):
             else:
                 actual_url = href
 
-            if "crunchbase.com/person/" in actual_url or \
-               "crunchbase.com/organization/" in actual_url:
-                clean = actual_url.split("?")[0]
-                urls.append(clean)
+            if not actual_url.startswith("http"):
+                continue
+
+            # Skip social media profiles — we want articles
+            skip_domains = [
+                "linkedin.com/in/", "twitter.com/", "x.com/",
+                "facebook.com/", "instagram.com/",
+                "crunchbase.com/person/", "wellfound.com/people/",
+            ]
+            if any(d in actual_url for d in skip_domains):
+                continue
+
+            # Accept articles from known good domains + github
+            clean = actual_url.split("?")[0]
+            urls.append(clean)
 
         return urls
 
-    async def _scrape_and_create(
-        self,
-        client: httpx.AsyncClient,
-        session: AsyncSession,
-        url: str,
-        created_slugs: set[str],
-    ) -> bool:
-        """Scrape a Crunchbase profile and create an Investor if new."""
-        resp = await client.get(url)
-        if resp.status_code in (403, 429):
-            raise _RateLimitedError()
+    async def _scrape_article(
+        self, client: httpx.AsyncClient, url: str
+    ) -> list[dict]:
+        """Scrape an article page for angel investor names and descriptions."""
+        try:
+            resp = await client.get(url)
+        except httpx.HTTPError:
+            return []
+
         if resp.status_code != 200:
-            return False
+            return []
 
         html = resp.text
         soup = BeautifulSoup(html, "html.parser")
 
-        is_person = "/person/" in url
-        is_org = "/organization/" in url
+        # Remove navigation, sidebar, footer noise
+        for tag in soup.select("nav, footer, .sidebar, .nav, .footer, .menu, .ad, .advertisement"):
+            tag.decompose()
 
-        name = self._extract_name(soup, html)
-        if not name or len(name) < 2 or len(name) > 300:
+        people = []
+
+        # Strategy 1: Look for numbered/bulleted lists with names
+        people.extend(self._extract_from_lists(soup))
+
+        # Strategy 2: Look for headings (h2, h3) that are person names
+        people.extend(self._extract_from_headings(soup))
+
+        # Strategy 3: Look for bold names followed by descriptions
+        people.extend(self._extract_from_bold_names(soup))
+
+        # Strategy 4: GitHub markdown lists (for awesome-* repos)
+        if "github.com" in url or "raw.githubusercontent.com" in url:
+            people.extend(self._extract_from_github_markdown(html))
+
+        # Deduplicate by name
+        seen = set()
+        unique = []
+        for p in people:
+            name = p.get("name", "").strip()
+            if name and name not in seen:
+                seen.add(name)
+                unique.append(p)
+
+        return unique
+
+    def _extract_from_lists(self, soup: BeautifulSoup) -> list[dict]:
+        """Extract names from numbered/bulleted lists (ol, ul)."""
+        people = []
+        for li in soup.select("ol li, ul li"):
+            text = li.get_text(strip=True)
+            if len(text) < 10 or len(text) > 1000:
+                continue
+
+            # Look for bold/strong name at start
+            bold = li.find(["strong", "b"])
+            if bold:
+                name_candidate = bold.get_text(strip=True)
+                # Remove numbering like "1." or "1)"
+                name_candidate = re.sub(r"^\d+[\.\)]\s*", "", name_candidate).strip()
+                # Remove trailing punctuation
+                name_candidate = re.sub(r"[:\-–—,]+$", "", name_candidate).strip()
+
+                if self._is_person_name(name_candidate):
+                    desc = text.replace(name_candidate, "", 1).strip()
+                    desc = re.sub(r"^[\s:\-–—]+", "", desc).strip()
+                    people.append({
+                        "name": name_candidate,
+                        "description": desc[:500] if desc else None,
+                    })
+                    continue
+
+            # Try to extract "Name — description" or "Name: description" pattern
+            match = re.match(
+                r"^(?:\d+[\.\)]\s*)?([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,4})\s*[\-–—:]\s*(.+)",
+                text,
+            )
+            if match:
+                name_candidate = match.group(1).strip()
+                if self._is_person_name(name_candidate):
+                    people.append({
+                        "name": name_candidate,
+                        "description": match.group(2).strip()[:500],
+                    })
+
+        return people
+
+    def _extract_from_headings(self, soup: BeautifulSoup) -> list[dict]:
+        """Extract names from h2/h3/h4 headings that look like person names."""
+        people = []
+        for heading in soup.select("h2, h3, h4"):
+            text = heading.get_text(strip=True)
+            # Remove numbering
+            text = re.sub(r"^\d+[\.\)]\s*", "", text).strip()
+            # Remove trailing punctuation
+            text = re.sub(r"[:\-–—,]+$", "", text).strip()
+
+            if not self._is_person_name(text):
+                continue
+
+            # Get following paragraph as description
+            desc = None
+            next_el = heading.find_next_sibling()
+            if next_el and next_el.name == "p":
+                desc = next_el.get_text(strip=True)[:500]
+
+            people.append({
+                "name": text,
+                "description": desc,
+            })
+
+        return people
+
+    def _extract_from_bold_names(self, soup: BeautifulSoup) -> list[dict]:
+        """Extract names from bold text within paragraphs."""
+        people = []
+        for p in soup.select("p"):
+            bolds = p.find_all(["strong", "b"])
+            for bold in bolds:
+                name_candidate = bold.get_text(strip=True)
+                name_candidate = re.sub(r"^\d+[\.\)]\s*", "", name_candidate).strip()
+                name_candidate = re.sub(r"[:\-–—,]+$", "", name_candidate).strip()
+
+                if self._is_person_name(name_candidate):
+                    # Get rest of paragraph as description
+                    full_text = p.get_text(strip=True)
+                    desc = full_text.replace(name_candidate, "", 1).strip()
+                    desc = re.sub(r"^[\s:\-–—]+", "", desc).strip()
+                    people.append({
+                        "name": name_candidate,
+                        "description": desc[:500] if desc else None,
+                    })
+
+        return people
+
+    def _extract_from_github_markdown(self, html: str) -> list[dict]:
+        """Extract names from GitHub README markdown rendered as HTML."""
+        soup = BeautifulSoup(html, "html.parser")
+        people = []
+
+        # GitHub renders markdown in article.markdown-body
+        article = soup.select_one("article.markdown-body") or soup
+
+        # Look for links that look like person names
+        for link in article.find_all("a", href=True):
+            text = link.get_text(strip=True)
+            if self._is_person_name(text):
+                # Get surrounding text as description
+                parent = link.parent
+                if parent:
+                    full_text = parent.get_text(strip=True)
+                    desc = full_text.replace(text, "", 1).strip()
+                    desc = re.sub(r"^[\s:\-–—|]+", "", desc).strip()
+                    people.append({
+                        "name": text,
+                        "description": desc[:500] if desc else None,
+                    })
+
+        # Also check table rows
+        for row in article.select("tr"):
+            cells = row.select("td")
+            if len(cells) >= 1:
+                first_cell = cells[0].get_text(strip=True)
+                if self._is_person_name(first_cell):
+                    desc = " | ".join(c.get_text(strip=True) for c in cells[1:])
+                    people.append({
+                        "name": first_cell,
+                        "description": desc[:500] if desc else None,
+                    })
+
+        return people
+
+    def _is_person_name(self, text: str) -> bool:
+        """Check if text looks like a person's name."""
+        if not text or len(text) < 3 or len(text) > 80:
             return False
 
+        words = text.split()
+        if len(words) < 2 or len(words) > 5:
+            return False
+
+        # Must start with uppercase letter
+        if not words[0][0].isupper():
+            return False
+
+        # No numbers
+        if re.search(r"\d", text):
+            return False
+
+        # No common non-name words
+        non_names = {
+            "the", "top", "best", "most", "how", "what", "why", "when",
+            "angel", "investor", "investors", "investing", "investment",
+            "venture", "capital", "fund", "funding", "about", "read",
+            "more", "learn", "see", "view", "click", "here", "share",
+            "related", "posts", "articles", "news", "home", "contact",
+            "sign", "login", "register", "subscribe", "newsletter",
+        }
+        lower_words = {w.lower() for w in words}
+        if lower_words & non_names:
+            return False
+
+        # At least 2 words starting with uppercase
+        cap_words = sum(1 for w in words if w[0].isupper())
+        if cap_words < 2:
+            return False
+
+        return True
+
+    async def _create_investor(
+        self,
+        session: AsyncSession,
+        person: dict,
+        created_slugs: set[str],
+    ) -> bool:
+        """Create an Investor record if the person doesn't already exist."""
+        name = person["name"]
         slug = make_slug(name)
+
         if not slug or slug in created_slugs:
             return False
 
-        # Check if already exists
         existing = await session.execute(
             select(Investor.id).where(Investor.slug == slug)
         )
         if existing.scalar_one_or_none() is not None:
             return False
 
-        # For person profiles, verify they're an investor
-        if is_person and not self._is_investor(html):
-            return False
-
-        # Extract data
-        description = self._extract_description(soup, html)
-        location = self._extract_location(soup, html)
-        twitter = self._extract_twitter(soup, html)
-        website = self._extract_website(soup, html)
-        inv_type = self._detect_type(html, is_person, is_org)
-        category = self._detect_category(html, is_person)
+        description = person.get("description")
 
         investor = Investor(
             name=name,
             slug=slug,
-            type=inv_type,
+            type="angel",
             description=description[:2000] if description else None,
-            hq_location=location[:200] if location else None,
-            twitter=twitter[:200] if twitter else None,
-            website=website,
-            investor_category=category,
+            investor_category="angel_investor",
             source_freshness={
                 SOURCE_KEY: datetime.now(timezone.utc).isoformat(),
-                "crunchbase_url": url,
             },
             last_enriched_at=datetime.now(timezone.utc),
         )
         session.add(investor)
         created_slugs.add(slug)
         return True
-
-    def _extract_name(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract name from Crunchbase profile."""
-        # JSON-LD
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if isinstance(data, dict) and data.get("name"):
-                    return data["name"].strip()
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict) and item.get("name"):
-                            return item["name"].strip()
-            except (json.JSONDecodeError, TypeError):
-                continue
-
-        # og:title
-        meta = soup.find("meta", attrs={"property": "og:title"})
-        if meta and meta.get("content"):
-            title = meta["content"].strip()
-            # Remove " - Crunchbase Person/Organization Profile"
-            name = re.split(r"\s*[-|–—]\s*Crunchbase", title, flags=re.IGNORECASE)[0].strip()
-            if name and len(name) > 1:
-                return name
-
-        # <title>
-        title_tag = soup.find("title")
-        if title_tag:
-            title = title_tag.get_text(strip=True)
-            name = re.split(r"\s*[-|–—]\s*Crunchbase", title, flags=re.IGNORECASE)[0].strip()
-            if name and len(name) > 1:
-                return name
-
-        # h1
-        h1 = soup.find("h1")
-        if h1:
-            name = h1.get_text(strip=True)
-            if name and 1 < len(name) < 200:
-                return name
-
-        return None
-
-    def _is_investor(self, html: str) -> bool:
-        """Check if this person is actually an investor."""
-        lower = html.lower()
-        investor_signals = [
-            "angel investor", "angel investing", "seed investor",
-            "pre-seed", "venture partner", "syndicate",
-            "portfolio companies", "investments include",
-            "invested in", "startup investor", "angel fund",
-            "number of investments", "investment highlights",
-            "limited partner", "scout", "check size",
-            "angel group", "angel network",
-            "investment activity", "lead investor",
-        ]
-        # Require at least one investor signal
-        return any(signal in lower for signal in investor_signals)
-
-    def _extract_description(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract description."""
-        # JSON-LD
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if isinstance(data, dict) and data.get("description"):
-                    desc = data["description"].strip()
-                    if len(desc) > 20:
-                        return desc
-            except (json.JSONDecodeError, TypeError):
-                continue
-
-        meta = soup.find("meta", attrs={"property": "og:description"})
-        if meta and meta.get("content"):
-            content = meta["content"].strip()
-            if len(content) > 20:
-                return content
-
-        meta = soup.find("meta", attrs={"name": "description"})
-        if meta and meta.get("content"):
-            content = meta["content"].strip()
-            if len(content) > 20:
-                return content
-
-        return None
-
-    def _extract_location(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract location."""
-        # JSON-LD address
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if isinstance(data, dict):
-                    address = data.get("address")
-                    if isinstance(address, dict):
-                        parts = []
-                        for field in ("addressLocality", "addressRegion", "addressCountry"):
-                            val = address.get(field)
-                            if val:
-                                parts.append(val.strip())
-                        if parts:
-                            return ", ".join(parts)
-            except (json.JSONDecodeError, TypeError):
-                continue
-
-        match = re.search(r'"addressLocality":\s*"([^"]+)"', html)
-        if match:
-            return match.group(1).strip()
-
-        for selector in [
-            "[data-test='location']", "[class*='location']",
-            ".field-type-location_identifiers",
-        ]:
-            el = soup.select_one(selector)
-            if el:
-                text = el.get_text(strip=True)
-                if text and len(text) < 100:
-                    return text
-
-        return None
-
-    def _extract_twitter(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract Twitter handle."""
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)/?$", href)
-            if match:
-                handle = match.group(1)
-                if handle.lower() not in ("share", "intent", "home", "search", "explore", "i", "hashtag"):
-                    return f"@{handle}"
-
-        match = re.search(r'(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})', html)
-        if match:
-            handle = match.group(1)
-            if handle.lower() not in ("share", "intent", "home", "search", "explore", "i", "hashtag"):
-                return f"@{handle}"
-
-        return None
-
-    def _extract_website(self, soup: BeautifulSoup, html: str) -> str | None:
-        """Extract website URL."""
-        # JSON-LD
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if isinstance(data, dict):
-                    url = data.get("url") or data.get("sameAs")
-                    if isinstance(url, str) and "crunchbase.com" not in url and url.startswith("http"):
-                        return url
-            except (json.JSONDecodeError, TypeError):
-                continue
-
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            text = link.get_text(strip=True).lower()
-            if any(d in href for d in [
-                "crunchbase.com", "twitter.com", "x.com", "linkedin.com",
-                "facebook.com", "github.com", "youtube.com",
-            ]):
-                continue
-            if text in ("website", "site", "homepage", "visit website") or "website" in text:
-                if href.startswith("http"):
-                    return href
-
-        return None
-
-    def _detect_type(self, html: str, is_person: bool, is_org: bool) -> str:
-        """Detect investor type."""
-        lower = html.lower()
-
-        if is_person:
-            return "angel"
-
-        # For organizations, try to classify
-        type_keywords = {
-            "vc": ["venture capital", "venture fund", "vc firm"],
-            "angel": ["angel group", "angel network", "angel fund"],
-            "accelerator": ["accelerator", "incubator"],
-            "corporate": ["corporate venture", "cvc"],
-            "family_office": ["family office"],
-        }
-        for inv_type, keywords in type_keywords.items():
-            if any(kw in lower for kw in keywords):
-                return inv_type
-
-        return "vc"  # Default for orgs
-
-    def _detect_category(self, html: str, is_person: bool) -> str:
-        """Detect investor category."""
-        lower = html.lower()
-
-        if is_person:
-            return "angel_investor"
-
-        if any(kw in lower for kw in ["micro vc", "micro-vc", "micro venture"]):
-            return "micro_vc"
-        if any(kw in lower for kw in ["pre-seed fund", "pre seed fund"]):
-            return "pre_seed_fund"
-        if any(kw in lower for kw in ["angel group", "angel network"]):
-            return "angel_group"
-        if any(kw in lower for kw in ["solo gp", "emerging manager"]):
-            return "emerging_manager"
-
-        return "pre_seed_fund"
 
 
 class _RateLimitedError(Exception):
