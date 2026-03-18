@@ -34,7 +34,7 @@ from src.models import Investor, Project, Round, RoundInvestor
 
 router = APIRouter(prefix="/investors", tags=["investors"])
 
-SORT_FIELDS = {"name", "rounds_count"}
+SORT_FIELDS = {"name", "rounds_count", "last_active"}
 
 
 @router.get("", response_model=InvestorListResponse)
@@ -54,18 +54,24 @@ async def list_investors(
     if cached:
         return Response(content=cached, media_type="application/json")
 
-    # Subquery: count rounds per investor
+    # Subquery: count rounds and most recent round date per investor
     rounds_sub = (
         select(
             RoundInvestor.investor_id,
             func.count().label("rounds_count"),
+            func.max(Round.date).label("last_active"),
         )
+        .join(Round, Round.id == RoundInvestor.round_id)
         .group_by(RoundInvestor.investor_id)
         .subquery()
     )
 
     stmt = (
-        select(Investor, func.coalesce(rounds_sub.c.rounds_count, 0).label("rounds_count"))
+        select(
+            Investor,
+            func.coalesce(rounds_sub.c.rounds_count, 0).label("rounds_count"),
+            rounds_sub.c.last_active,
+        )
         .outerjoin(rounds_sub, Investor.id == rounds_sub.c.investor_id)
         .options(selectinload(Investor.funds))
     )
@@ -82,7 +88,9 @@ async def list_investors(
         count_stmt = count_stmt.where(*filters)
 
     # Sorting
-    if sort == "rounds_count":
+    if sort == "last_active":
+        stmt = stmt.order_by(rounds_sub.c.last_active.desc().nulls_last(), Investor.name)
+    elif sort == "rounds_count":
         stmt = stmt.order_by(func.coalesce(rounds_sub.c.rounds_count, 0).desc(), Investor.name)
     else:
         stmt = stmt.order_by(Investor.name)
@@ -98,8 +106,10 @@ async def list_investors(
     for row in rows:
         investor = row[0]
         rounds_count = row[1]
+        last_active = row[2]
         inv_dict = InvestorDetail.model_validate(investor).model_dump()
         inv_dict["rounds_count"] = rounds_count
+        inv_dict["last_active"] = last_active
         data.append(InvestorDetail(**inv_dict))
 
     response = InvestorListResponse(

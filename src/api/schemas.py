@@ -180,6 +180,7 @@ class InvestorDetail(BaseModel):
     description: str | None
     hq_location: str | None
     rounds_count: int = 0
+    last_active: date | None = None
     funds: list[FundOut] = []
     created_at: datetime
 
