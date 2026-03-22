@@ -38,6 +38,24 @@ class Settings(BaseSettings):
                 values["redis_url"] = raw
         return values
 
+    @model_validator(mode="after")
+    def enforce_production_config(self):
+        """Fail fast if running in production without real database/redis URLs."""
+        if not os.environ.get("RAILWAY_ENVIRONMENT"):
+            return self
+        errors = []
+        if "localhost" in self.database_url:
+            errors.append("database_url still points to localhost")
+        if "localhost" in self.redis_url:
+            errors.append("redis_url still points to localhost")
+        if errors:
+            raise ValueError(
+                f"Production environment detected (RAILWAY_ENVIRONMENT="
+                f"{os.environ['RAILWAY_ENVIRONMENT']!r}) but: {'; '.join(errors)}. "
+                f"Set RAISEFN_DATABASE_URL / RAISEFN_REDIS_URL or DATABASE_URL / REDIS_URL."
+            )
+        return self
+
     model_config = {"env_prefix": "RAISEFN_", "env_file": ".env", "env_file_encoding": "utf-8"}
 
 
