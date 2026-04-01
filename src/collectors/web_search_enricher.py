@@ -21,8 +21,8 @@ from src.models.round_investor import RoundInvestor
 logger = logging.getLogger(__name__)
 
 SOURCE_KEY = "web_search"
-BATCH_SIZE = 50
-REQUEST_DELAY = 2.0  # seconds between requests to DuckDuckGo
+BATCH_SIZE = 100
+REQUEST_DELAY = 3.0  # seconds between requests to DuckDuckGo
 
 DDG_URL = "https://html.duckduckgo.com/html/"
 USER_AGENT = (
