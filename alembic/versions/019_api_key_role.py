@@ -16,7 +16,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("api_keys", sa.Column("role", sa.String(20), server_default="founder", nullable=False))
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns WHERE table_name='api_keys' AND column_name='role'"
+    ))
+    if not result.fetchone():
+        op.add_column("api_keys", sa.Column("role", sa.String(20), server_default="founder", nullable=False))
 
 
 def downgrade() -> None:
