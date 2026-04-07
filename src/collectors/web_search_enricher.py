@@ -11,7 +11,7 @@ import re
 from urllib.parse import unquote, urlparse
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
@@ -245,8 +245,10 @@ class WebSearchEnricher(BaseEnricher):
             select(Investor)
             .outerjoin(participation_count, Investor.id == participation_count.c.investor_id)
             .where(
-                Investor.source_freshness.is_(None)
-                | ~Investor.source_freshness.has_key(SOURCE_KEY)
+                or_(
+                    Investor.source_freshness.is_(None),
+                    ~cast(Investor.source_freshness, String).contains(SOURCE_KEY),
+                )
             )
             .order_by(func.coalesce(participation_count.c.deal_count, 0).desc())
             .limit(BATCH_SIZE)
