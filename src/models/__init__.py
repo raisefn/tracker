@@ -15,9 +15,20 @@ from src.models.round_investor import RoundInvestor
 from src.models.webhook import Webhook
 
 __all__ = [
-    "ApiKey", "Base", "CollectorRun", "Contributor", "Founder", "Fund",
-    "IntelFeedback", "IntelRequest",
-    "Investor", "InvestorAlias", "InvestorIntel",
-    "Project", "ProjectMetricSnapshot", "Round", "RoundInvestor",
+    "ApiKey",
+    "Base",
+    "CollectorRun",
+    "Contributor",
+    "Founder",
+    "Fund",
+    "IntelFeedback",
+    "IntelRequest",
+    "Investor",
+    "InvestorAlias",
+    "InvestorIntel",
+    "Project",
+    "ProjectMetricSnapshot",
+    "Round",
+    "RoundInvestor",
     "Webhook",
 ]

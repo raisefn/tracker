@@ -54,8 +54,7 @@ class FiveHundredGlobalCollector(BaseCollector):
         companies = []
 
         cards = soup.select(
-            "[class*='company'], [class*='founder'],"
-            " [class*='portfolio'], [class*='card']"
+            "[class*='company'], [class*='founder'], [class*='portfolio'], [class*='card']"
         )
 
         if not cards:
@@ -85,17 +84,20 @@ class FiveHundredGlobalCollector(BaseCollector):
             location = ""
             loc_el = (
                 card.find(class_=lambda c: c and "location" in c.lower())
-                if card.get("class") else None
+                if card.get("class")
+                else None
             )
             if loc_el:
                 location = loc_el.get_text(strip=True)
 
-            companies.append({
-                "name": name,
-                "description": description,
-                "website": link,
-                "location": location,
-            })
+            companies.append(
+                {
+                    "name": name,
+                    "description": description,
+                    "website": link,
+                    "location": location,
+                }
+            )
 
         return companies
 

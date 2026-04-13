@@ -156,10 +156,9 @@ class SECFormADVEnricher(BaseEnricher):
 
             advisers = []
 
-            is_zip = (
-                resp.headers.get("content-type", "").startswith("application/zip")
-                or ADV_CURRENT_URL.endswith(".zip")
-            )
+            is_zip = resp.headers.get("content-type", "").startswith(
+                "application/zip"
+            ) or ADV_CURRENT_URL.endswith(".zip")
             if is_zip:
                 zf = zipfile.ZipFile(io.BytesIO(resp.content))
                 for name in zf.namelist():

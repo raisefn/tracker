@@ -48,10 +48,10 @@ class GitHubEnricher(BaseEnricher):
 
         # Only enrich projects that have a GitHub URL
         projects = (
-            await session.execute(
-                select(Project).where(Project.github.isnot(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.github.isnot(None))))
+            .scalars()
+            .all()
+        )
 
         if not projects:
             logger.info("No projects with GitHub URLs found.")
@@ -96,9 +96,7 @@ class GitHubEnricher(BaseEnricher):
                         total_contributors += contributors
 
                         # Fetch recent commit activity
-                        commits = await self._fetch_commits_30d(
-                            client, repo["full_name"]
-                        )
+                        commits = await self._fetch_commits_30d(client, repo["full_name"])
                         total_commits_30d += commits
 
                         await asyncio.sleep(delay)
@@ -173,9 +171,7 @@ class GitHubEnricher(BaseEnricher):
 
     async def _fetch_commits_30d(self, client: httpx.AsyncClient, repo_full_name: str) -> int:
         """Get commit activity for last 30 days."""
-        resp = await client.get(
-            f"{GITHUB_API_BASE}/repos/{repo_full_name}/stats/commit_activity"
-        )
+        resp = await client.get(f"{GITHUB_API_BASE}/repos/{repo_full_name}/stats/commit_activity")
         if resp.status_code != 200:
             return 0
         weeks = resp.json()

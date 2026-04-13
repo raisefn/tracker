@@ -25,10 +25,10 @@ class PyPIEnricher(BaseEnricher):
         result = EnrichmentResult(source=self.source_name())
 
         projects = (
-            await session.execute(
-                select(Project).where(Project.pypi_package.isnot(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.pypi_package.isnot(None))))
+            .scalars()
+            .all()
+        )
 
         if not projects:
             return result

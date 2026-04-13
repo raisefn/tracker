@@ -157,19 +157,19 @@ class SEC13FEnricher(BaseEnricher):
 
                         try:
                             # 13F values in thousands
-                            value = int(
-                                float(row.get("VALUE", "0")) * 1000
-                            )
+                            value = int(float(row.get("VALUE", "0")) * 1000)
                         except (ValueError, TypeError):
                             value = 0
 
                         issuer = row.get("NAMEOFISSUER", "").strip()
                         if issuer and value > 0:
-                            filers[cik]["holdings"].append({
-                                "issuer": issuer,
-                                "value": value,
-                                "cusip": row.get("CUSIP", "").strip(),
-                            })
+                            filers[cik]["holdings"].append(
+                                {
+                                    "issuer": issuer,
+                                    "value": value,
+                                    "cusip": row.get("CUSIP", "").strip(),
+                                }
+                            )
                             filers[cik]["total_value"] += value
 
             # Sort holdings by value and keep top 10 for each filer
@@ -207,10 +207,7 @@ class SEC13FEnricher(BaseEnricher):
         # Top holdings as JSON
         top = data.get("top_holdings", [])
         if top:
-            investor.top_holdings = [
-                {"issuer": h["issuer"], "value": h["value"]}
-                for h in top
-            ]
+            investor.top_holdings = [{"issuer": h["issuer"], "value": h["value"]} for h in top]
 
         # Classify type if not already set
         if not investor.type:

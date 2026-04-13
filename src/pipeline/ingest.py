@@ -98,9 +98,9 @@ async def find_existing_round(
     )
     if amount_usd is not None:
         stmt = stmt.where(Round.amount_usd == amount_usd)
-    existing = (await session.execute(
-        stmt.options(selectinload(Round.investor_participations))
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(stmt.options(selectinload(Round.investor_participations)))
+    ).scalar_one_or_none()
     if existing:
         return existing
 
@@ -151,17 +151,25 @@ async def _merge_into_existing(
         investor = await get_or_create_investor(session, inv_name)
         if investor and investor.id not in existing_inv_ids:
             existing_inv_ids.add(investor.id)
-            session.add(RoundInvestor(
-                round_id=existing.id, investor_id=investor.id, is_lead=True,
-            ))
+            session.add(
+                RoundInvestor(
+                    round_id=existing.id,
+                    investor_id=investor.id,
+                    is_lead=True,
+                )
+            )
 
     for inv_name in raw.other_investors:
         investor = await get_or_create_investor(session, inv_name)
         if investor and investor.id not in existing_inv_ids:
             existing_inv_ids.add(investor.id)
-            session.add(RoundInvestor(
-                round_id=existing.id, investor_id=investor.id, is_lead=False,
-            ))
+            session.add(
+                RoundInvestor(
+                    round_id=existing.id,
+                    investor_id=investor.id,
+                    is_lead=False,
+                )
+            )
 
     # Fill in missing fields from the new source
     if raw.valuation_usd and not existing.valuation_usd:
@@ -172,9 +180,7 @@ async def _merge_into_existing(
         existing.source_url = raw.source_url
 
 
-async def ingest_round(
-    session: AsyncSession, raw: RawRound, source_type: str
-) -> dict | None:
+async def ingest_round(session: AsyncSession, raw: RawRound, source_type: str) -> dict | None:
     """Ingest a single round. Returns event data dict if new, None if duplicate."""
     raw = normalize_round(raw)
     failures = validate_round(raw)
@@ -214,21 +220,25 @@ async def ingest_round(
         investor = await get_or_create_investor(session, inv_name)
         if investor and investor.slug not in seen_slugs:
             seen_slugs.add(investor.slug)
-            session.add(RoundInvestor(
-                round_id=round_record.id,
-                investor_id=investor.id,
-                is_lead=True,
-            ))
+            session.add(
+                RoundInvestor(
+                    round_id=round_record.id,
+                    investor_id=investor.id,
+                    is_lead=True,
+                )
+            )
 
     for inv_name in raw.other_investors:
         investor = await get_or_create_investor(session, inv_name)
         if investor and investor.slug not in seen_slugs:
             seen_slugs.add(investor.slug)
-            session.add(RoundInvestor(
-                round_id=round_record.id,
-                investor_id=investor.id,
-                is_lead=False,
-            ))
+            session.add(
+                RoundInvestor(
+                    round_id=round_record.id,
+                    investor_id=investor.id,
+                    is_lead=False,
+                )
+            )
 
     # Create founder records if provided
     if raw.founders:
@@ -249,9 +259,7 @@ async def _ingest_founders(
 ) -> None:
     """Create Founder records, skipping duplicates by slug within the project."""
     # Get existing founder slugs for this project
-    existing = await session.execute(
-        select(Founder.slug).where(Founder.project_id == project.id)
-    )
+    existing = await session.execute(select(Founder.slug).where(Founder.project_id == project.id))
     existing_slugs = {row[0] for row in existing.all()}
 
     for raw_founder in founders:
@@ -260,16 +268,18 @@ async def _ingest_founders(
             continue
         existing_slugs.add(slug)
 
-        session.add(Founder(
-            project_id=project.id,
-            name=raw_founder.name,
-            slug=slug,
-            role=raw_founder.role,
-            linkedin=raw_founder.linkedin,
-            twitter=raw_founder.twitter,
-            github=raw_founder.github,
-            source=source_type,
-        ))
+        session.add(
+            Founder(
+                project_id=project.id,
+                name=raw_founder.name,
+                slug=slug,
+                role=raw_founder.role,
+                linkedin=raw_founder.linkedin,
+                twitter=raw_founder.twitter,
+                github=raw_founder.github,
+                source=source_type,
+            )
+        )
 
 
 BATCH_COMMIT_SIZE = 100

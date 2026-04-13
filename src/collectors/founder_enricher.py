@@ -41,8 +41,19 @@ HEADERS = {
 
 # Names too generic to search
 SKIP_NAMES = {
-    "unknown", "undisclosed", "anonymous", "n/a", "na", "none", "tbd",
-    "various", "director", "officer", "member", "manager", "agent",
+    "unknown",
+    "undisclosed",
+    "anonymous",
+    "n/a",
+    "na",
+    "none",
+    "tbd",
+    "various",
+    "director",
+    "officer",
+    "member",
+    "manager",
+    "agent",
 }
 
 # Previous company signal words in bios/snippets
@@ -102,10 +113,10 @@ class FounderEnricher(BaseEnricher):
         # Pre-load project names for search context
         project_ids = {f.project_id for f in founders}
         projects = (
-            await session.execute(
-                select(Project).where(Project.id.in_(project_ids))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.id.in_(project_ids))))
+            .scalars()
+            .all()
+        )
         project_map = {p.id: p.name for p in projects}
 
         async with httpx.AsyncClient(
@@ -188,9 +199,7 @@ class FounderEnricher(BaseEnricher):
 
         # Search 2: Find bio, previous companies, Twitter
         await asyncio.sleep(REQUEST_DELAY)
-        bio, prev_companies, twitter = await self._search_background(
-            client, founder.name, company
-        )
+        bio, prev_companies, twitter = await self._search_background(client, founder.name, company)
 
         if bio and not founder.bio:
             founder.bio = bio[:2000]
@@ -257,9 +266,7 @@ class FounderEnricher(BaseEnricher):
 
             # Extract Twitter handle
             if not twitter:
-                tw_match = re.search(
-                    r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})", url
-                )
+                tw_match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})", url)
                 if tw_match:
                     handle = tw_match.group(1).lower()
                     if handle not in ("share", "intent", "home", "search", "explore", "i"):

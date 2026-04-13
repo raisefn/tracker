@@ -24,10 +24,10 @@ class NpmEnricher(BaseEnricher):
         result = EnrichmentResult(source=self.source_name())
 
         projects = (
-            await session.execute(
-                select(Project).where(Project.npm_package.isnot(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.npm_package.isnot(None))))
+            .scalars()
+            .all()
+        )
 
         if not projects:
             return result

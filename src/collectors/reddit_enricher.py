@@ -25,19 +25,21 @@ class RedditEnricher(BaseEnricher):
         # or search a limited batch of unenriched projects per run
 
         known = (
-            await session.execute(
-                select(Project).where(Project.reddit_subreddit.isnot(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.reddit_subreddit.isnot(None))))
+            .scalars()
+            .all()
+        )
 
         # Search a small batch of projects without subreddit (discovery)
         unknown = (
-            await session.execute(
-                select(Project)
-                .where(Project.reddit_subreddit.is_(None))
-                .limit(200)
+            (
+                await session.execute(
+                    select(Project).where(Project.reddit_subreddit.is_(None)).limit(200)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         projects = known + unknown
 

@@ -37,7 +37,8 @@ class TechstarsCollector(BaseCollector):
 
                     data = resp.json()
                     companies = (
-                        data if isinstance(data, list)
+                        data
+                        if isinstance(data, list)
                         else data.get("companies", data.get("results", []))
                     )
 

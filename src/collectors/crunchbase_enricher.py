@@ -57,24 +57,37 @@ HEADERS = {
 # Crunchbase type keywords for investor classification
 TYPE_KEYWORDS = {
     "vc": [
-        "venture capital", "venture fund", "vc firm", "venture firm",
-        "venture investing", "early-stage venture",
+        "venture capital",
+        "venture fund",
+        "vc firm",
+        "venture firm",
+        "venture investing",
+        "early-stage venture",
     ],
     "angel": [
-        "angel investor", "angel investing", "individual investor",
+        "angel investor",
+        "angel investing",
+        "individual investor",
     ],
     "accelerator": [
-        "accelerator", "incubator", "startup accelerator", "startup program",
+        "accelerator",
+        "incubator",
+        "startup accelerator",
+        "startup program",
     ],
     "corporate": [
-        "corporate venture", "cvc", "strategic investor",
+        "corporate venture",
+        "cvc",
+        "strategic investor",
         "corporate investment",
     ],
     "fund_of_funds": [
-        "fund of funds", "fund-of-funds",
+        "fund of funds",
+        "fund-of-funds",
     ],
     "family_office": [
-        "family office", "family investment",
+        "family office",
+        "family investment",
     ],
 }
 
@@ -210,9 +223,7 @@ class CrunchbaseEnricher(BaseEnricher):
 
         return resp.text
 
-    async def _search_crunchbase(
-        self, client: httpx.AsyncClient, investor_name: str
-    ) -> str | None:
+    async def _search_crunchbase(self, client: httpx.AsyncClient, investor_name: str) -> str | None:
         """Search DuckDuckGo for the investor's Crunchbase profile URL."""
         query = f'site:crunchbase.com "{investor_name}"'
         try:
@@ -237,8 +248,10 @@ class CrunchbaseEnricher(BaseEnricher):
                 else:
                     actual_url = href
 
-                if "crunchbase.com/organization/" in actual_url or \
-                   "crunchbase.com/person/" in actual_url:
+                if (
+                    "crunchbase.com/organization/" in actual_url
+                    or "crunchbase.com/person/" in actual_url
+                ):
                     # Clean trailing query params
                     return actual_url.split("?")[0]
 
@@ -249,9 +262,7 @@ class CrunchbaseEnricher(BaseEnricher):
 
         return None
 
-    def _extract_profile_data(
-        self, investor: Investor, html: str, profile_url: str | None
-    ) -> bool:
+    def _extract_profile_data(self, investor: Investor, html: str, profile_url: str | None) -> bool:
         """Extract profile data from a Crunchbase HTML page.
 
         Only updates fields that are currently NULL/empty on the investor.
@@ -353,14 +364,20 @@ class CrunchbaseEnricher(BaseEnricher):
                 if isinstance(data, list):
                     for item in data:
                         if isinstance(item, dict) and item.get("@type") in (
-                            "Organization", "Person", "Corporation",
-                            "FundingAgency", "FinancialService",
+                            "Organization",
+                            "Person",
+                            "Corporation",
+                            "FundingAgency",
+                            "FinancialService",
                         ):
                             return item
                 elif isinstance(data, dict):
                     if data.get("@type") in (
-                        "Organization", "Person", "Corporation",
-                        "FundingAgency", "FinancialService",
+                        "Organization",
+                        "Person",
+                        "Corporation",
+                        "FundingAgency",
+                        "FinancialService",
                     ):
                         return data
             except (json.JSONDecodeError, TypeError):
@@ -404,9 +421,7 @@ class CrunchbaseEnricher(BaseEnricher):
 
         return None
 
-    def _extract_location(
-        self, soup: BeautifulSoup, jsonld: dict | None, html: str
-    ) -> str | None:
+    def _extract_location(self, soup: BeautifulSoup, jsonld: dict | None, html: str) -> str | None:
         """Extract location from JSON-LD, structured data, or page content."""
         # JSON-LD address
         if jsonld:
@@ -436,9 +451,7 @@ class CrunchbaseEnricher(BaseEnricher):
                         return ", ".join(parts)
 
         # Regex fallback: look for structured address data in HTML
-        location_match = re.search(
-            r'"addressLocality":\s*"([^"]+)"', html
-        )
+        location_match = re.search(r'"addressLocality":\s*"([^"]+)"', html)
         if location_match:
             return location_match.group(1).strip()
 
@@ -477,15 +490,22 @@ class CrunchbaseEnricher(BaseEnricher):
             # Skip internal crunchbase links and social media
             if "crunchbase.com" in href:
                 continue
-            if any(domain in href for domain in [
-                "twitter.com", "x.com", "linkedin.com", "facebook.com",
-                "github.com", "youtube.com", "instagram.com",
-            ]):
+            if any(
+                domain in href
+                for domain in [
+                    "twitter.com",
+                    "x.com",
+                    "linkedin.com",
+                    "facebook.com",
+                    "github.com",
+                    "youtube.com",
+                    "instagram.com",
+                ]
+            ):
                 continue
 
             # Look for explicit website labels
-            if text in ("website", "site", "homepage", "web", "visit website") or \
-               "website" in text:
+            if text in ("website", "site", "homepage", "web", "visit website") or "website" in text:
                 if href.startswith("http"):
                     return href
 
@@ -495,26 +515,32 @@ class CrunchbaseEnricher(BaseEnricher):
         """Extract Twitter/X handle from page links or content."""
         for link in soup.find_all("a", href=True):
             href = link["href"]
-            twitter_match = re.search(
-                r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)/?$", href
-            )
+            twitter_match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)/?$", href)
             if twitter_match:
                 handle = twitter_match.group(1)
                 if handle.lower() not in (
-                    "share", "intent", "home", "search", "explore",
-                    "i", "hashtag",
+                    "share",
+                    "intent",
+                    "home",
+                    "search",
+                    "explore",
+                    "i",
+                    "hashtag",
                 ):
                     return f"@{handle}"
 
         # Regex fallback in page content
-        match = re.search(
-            r'(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})', html
-        )
+        match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})", html)
         if match:
             handle = match.group(1)
             if handle.lower() not in (
-                "share", "intent", "home", "search", "explore",
-                "i", "hashtag",
+                "share",
+                "intent",
+                "home",
+                "search",
+                "explore",
+                "i",
+                "hashtag",
             ):
                 return f"@{handle}"
 
@@ -528,9 +554,7 @@ class CrunchbaseEnricher(BaseEnricher):
                 return href.split("?")[0]
 
         # Regex fallback
-        match = re.search(
-            r'https?://(?:www\.)?linkedin\.com/(?:in|company)/[A-Za-z0-9_-]+', html
-        )
+        match = re.search(r"https?://(?:www\.)?linkedin\.com/(?:in|company)/[A-Za-z0-9_-]+", html)
         if match:
             return match.group(0)
 
@@ -546,7 +570,7 @@ class CrunchbaseEnricher(BaseEnricher):
         # Look for investment count in page
         # Crunchbase often has "N Investments" or "Number of Investments: N"
         count_match = re.search(
-            r'(?:Number of )?Investments?\s*(?::</?\s*)?(\d+)', html, re.IGNORECASE
+            r"(?:Number of )?Investments?\s*(?::</?\s*)?(\d+)", html, re.IGNORECASE
         )
         if count_match:
             try:
@@ -557,8 +581,10 @@ class CrunchbaseEnricher(BaseEnricher):
         # Look for portfolio company links in investments section
         companies = []
         inv_section = soup.find(
-            lambda tag: tag.name in ("h2", "h3", "h4")
-            and tag.get_text(strip=True).lower().startswith("investment")
+            lambda tag: (
+                tag.name in ("h2", "h3", "h4")
+                and tag.get_text(strip=True).lower().startswith("investment")
+            )
         )
         if inv_section:
             # Walk siblings until next section header
@@ -615,9 +641,7 @@ class CrunchbaseEnricher(BaseEnricher):
 
         return None
 
-    def _extract_founded(
-        self, soup: BeautifulSoup, jsonld: dict | None, html: str
-    ) -> str | None:
+    def _extract_founded(self, soup: BeautifulSoup, jsonld: dict | None, html: str) -> str | None:
         """Extract founded date from JSON-LD or page content."""
         if jsonld:
             founded = jsonld.get("foundingDate")
@@ -625,7 +649,7 @@ class CrunchbaseEnricher(BaseEnricher):
                 return str(founded)
 
         # Regex fallback
-        match = re.search(r'Founded\s*(?:Date|:)?\s*(\d{4})', html, re.IGNORECASE)
+        match = re.search(r"Founded\s*(?:Date|:)?\s*(\d{4})", html, re.IGNORECASE)
         if match:
             return match.group(1)
 

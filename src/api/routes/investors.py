@@ -115,7 +115,9 @@ async def list_investors(
     response = InvestorListResponse(
         data=data,
         meta=PaginationMeta(
-            total=total, limit=limit, offset=offset,
+            total=total,
+            limit=limit,
+            offset=offset,
             has_more=offset + limit < total,
         ),
     )
@@ -176,10 +178,14 @@ async def get_co_investors(
     ri2 = aliased(RoundInvestor)
 
     # Count rounds where both investors were lead
-    both_led_expr = func.count(distinct(case(
-        (ri1.is_lead.is_(True) & ri2.is_lead.is_(True), ri1.round_id),
-        else_=None,
-    )))
+    both_led_expr = func.count(
+        distinct(
+            case(
+                (ri1.is_lead.is_(True) & ri2.is_lead.is_(True), ri1.round_id),
+                else_=None,
+            )
+        )
+    )
 
     stmt = (
         select(
@@ -223,17 +229,19 @@ async def get_co_investors(
         )
         sector_rows = (await db.execute(sector_stmt)).scalars().all()
 
-        data.append(CoInvestorOut(
-            id=row[0],
-            name=row[1],
-            slug=row[2],
-            type=row[3],
-            shared_rounds=row[4],
-            shared_sectors=sorted(sector_rows),
-            first_coinvest=row[5],
-            latest_coinvest=row[6],
-            both_led=row[7],
-        ))
+        data.append(
+            CoInvestorOut(
+                id=row[0],
+                name=row[1],
+                slug=row[2],
+                type=row[3],
+                shared_rounds=row[4],
+                shared_sectors=sorted(sector_rows),
+                first_coinvest=row[5],
+                latest_coinvest=row[6],
+                both_led=row[7],
+            )
+        )
 
     json_str = TypeAdapter(list[CoInvestorOut]).dump_json(data).decode()
     await set_cached(r, ck, json_str)
@@ -261,9 +269,8 @@ async def get_syndicates(
         raise HTTPException(status_code=404, detail="Investor not found")
 
     # Get all rounds for this investor
-    target_rounds_stmt = (
-        select(RoundInvestor.round_id)
-        .where(RoundInvestor.investor_id == investor.id)
+    target_rounds_stmt = select(RoundInvestor.round_id).where(
+        RoundInvestor.investor_id == investor.id
     )
     target_round_ids = (await db.execute(target_rounds_stmt)).scalars().all()
 
@@ -319,6 +326,7 @@ async def get_syndicates(
         max_group_size = min(len(inv_list), 6)
         for size in range(max_group_size, 1, -1):
             from itertools import combinations
+
             for combo in combinations(inv_list, size):
                 group = frozenset(combo)
                 group_counter[group] += 1
@@ -330,7 +338,7 @@ async def get_syndicates(
         for group, count in group_counter.items()
         if count >= min_appearances and len(group) >= 2
     ]
-    qualifying.sort(key=lambda x: (len(x[0]) * x[1]), reverse=True)
+    qualifying.sort(key=lambda x: len(x[0]) * x[1], reverse=True)
 
     # Remove subsets: if {A,B,C} qualifies, remove {A,B}, {A,C}, {B,C}
     final_groups: list[tuple[frozenset, int]] = []
@@ -355,20 +363,27 @@ async def get_syndicates(
     inv_map = {}
     if all_inv_ids:
         from uuid import UUID
-        inv_rows = (await db.execute(
-            select(Investor.id, Investor.name, Investor.slug)
-            .where(Investor.id.in_([UUID(x) for x in all_inv_ids]))
-        )).all()
+
+        inv_rows = (
+            await db.execute(
+                select(Investor.id, Investor.name, Investor.slug).where(
+                    Investor.id.in_([UUID(x) for x in all_inv_ids])
+                )
+            )
+        ).all()
         inv_map = {str(row[0]): (row[1], row[2]) for row in inv_rows}
 
     round_info = {}
     if all_round_ids:
         from uuid import UUID
-        round_rows = (await db.execute(
-            select(Round.id, Round.sector, Project.name)
-            .join(Project, Project.id == Round.project_id)
-            .where(Round.id.in_([UUID(x) for x in all_round_ids]))
-        )).all()
+
+        round_rows = (
+            await db.execute(
+                select(Round.id, Round.sector, Project.name)
+                .join(Project, Project.id == Round.project_id)
+                .where(Round.id.in_([UUID(x) for x in all_round_ids]))
+            )
+        ).all()
         round_info = {str(row[0]): (row[1], row[2]) for row in round_rows}
 
     syndicates = []
@@ -377,11 +392,14 @@ async def get_syndicates(
         for inv_id in sorted(group):
             if inv_id in inv_map:
                 from uuid import UUID
-                members.append(SyndicateMemberOut(
-                    id=UUID(inv_id),
-                    name=inv_map[inv_id][0],
-                    slug=inv_map[inv_id][1],
-                ))
+
+                members.append(
+                    SyndicateMemberOut(
+                        id=UUID(inv_id),
+                        name=inv_map[inv_id][0],
+                        slug=inv_map[inv_id][1],
+                    )
+                )
 
         sectors = set()
         deals = []
@@ -393,12 +411,14 @@ async def get_syndicates(
                 if project_name and project_name not in deals:
                     deals.append(project_name)
 
-        syndicates.append(SyndicateOut(
-            members=members,
-            shared_rounds=count,
-            sectors=sorted(sectors),
-            example_deals=deals[:5],
-        ))
+        syndicates.append(
+            SyndicateOut(
+                members=members,
+                shared_rounds=count,
+                sectors=sorted(sectors),
+                example_deals=deals[:5],
+            )
+        )
 
     response = SyndicateResponse(
         investor=InvestorBrief(id=investor.id, name=investor.name, slug=investor.slug),
@@ -428,17 +448,21 @@ async def get_investor_network(
         raise HTTPException(status_code=404, detail="Investor not found")
 
     # Lead/participant counts
-    lead_count = (await db.execute(
-        select(func.count())
-        .select_from(RoundInvestor)
-        .where(RoundInvestor.investor_id == investor.id, RoundInvestor.is_lead.is_(True))
-    )).scalar_one()
+    lead_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(RoundInvestor)
+            .where(RoundInvestor.investor_id == investor.id, RoundInvestor.is_lead.is_(True))
+        )
+    ).scalar_one()
 
-    total_rounds = (await db.execute(
-        select(func.count())
-        .select_from(RoundInvestor)
-        .where(RoundInvestor.investor_id == investor.id)
-    )).scalar_one()
+    total_rounds = (
+        await db.execute(
+            select(func.count())
+            .select_from(RoundInvestor)
+            .where(RoundInvestor.investor_id == investor.id)
+        )
+    ).scalar_one()
 
     participant_count = total_rounds - lead_count
     lead_rate = lead_count / total_rounds if total_rounds > 0 else 0.0
@@ -446,28 +470,34 @@ async def get_investor_network(
     # Unique co-investors
     ri1 = aliased(RoundInvestor)
     ri2 = aliased(RoundInvestor)
-    co_inv_count = (await db.execute(
-        select(func.count(distinct(ri2.investor_id)))
-        .select_from(ri1)
-        .join(ri2, (ri2.round_id == ri1.round_id) & (ri2.investor_id != investor.id))
-        .where(ri1.investor_id == investor.id)
-    )).scalar_one()
+    co_inv_count = (
+        await db.execute(
+            select(func.count(distinct(ri2.investor_id)))
+            .select_from(ri1)
+            .join(ri2, (ri2.round_id == ri1.round_id) & (ri2.investor_id != investor.id))
+            .where(ri1.investor_id == investor.id)
+        )
+    ).scalar_one()
 
     # Avg syndicate size (avg number of investors per round this investor is in)
     (
         select(func.avg(func.count(RoundInvestor.investor_id)))
         .select_from(RoundInvestor)
-        .where(RoundInvestor.round_id.in_(
-            select(RoundInvestor.round_id).where(RoundInvestor.investor_id == investor.id)
-        ))
+        .where(
+            RoundInvestor.round_id.in_(
+                select(RoundInvestor.round_id).where(RoundInvestor.investor_id == investor.id)
+            )
+        )
         .group_by(RoundInvestor.round_id)
     )
     # Need to wrap in subquery for avg of counts
     size_sub = (
         select(func.count(RoundInvestor.investor_id).label("cnt"))
-        .where(RoundInvestor.round_id.in_(
-            select(RoundInvestor.round_id).where(RoundInvestor.investor_id == investor.id)
-        ))
+        .where(
+            RoundInvestor.round_id.in_(
+                select(RoundInvestor.round_id).where(RoundInvestor.investor_id == investor.id)
+            )
+        )
         .group_by(RoundInvestor.round_id)
         .subquery()
     )
@@ -475,15 +505,17 @@ async def get_investor_network(
     avg_syndicate_size = float(avg_size) if avg_size else 0.0
 
     # Avg round size and total deployed
-    round_stats = (await db.execute(
-        select(
-            func.avg(Round.amount_usd).label("avg_amount"),
-            func.sum(Round.amount_usd).label("total_deployed"),
+    round_stats = (
+        await db.execute(
+            select(
+                func.avg(Round.amount_usd).label("avg_amount"),
+                func.sum(Round.amount_usd).label("total_deployed"),
+            )
+            .join(RoundInvestor, RoundInvestor.round_id == Round.id)
+            .where(RoundInvestor.investor_id == investor.id)
+            .where(Round.amount_usd.isnot(None))
         )
-        .join(RoundInvestor, RoundInvestor.round_id == Round.id)
-        .where(RoundInvestor.investor_id == investor.id)
-        .where(Round.amount_usd.isnot(None))
-    )).one()
+    ).one()
     avg_round_size = int(round_stats[0]) if round_stats[0] else None
     total_deployed = int(round_stats[1]) if round_stats[1] else None
 
@@ -532,8 +564,11 @@ async def get_investor_rounds(
 ):
     """Get paginated rounds for an investor."""
     params = {
-        "slug": slug, "limit": limit, "offset": offset,
-        "sector": sector, "round_type": round_type,
+        "slug": slug,
+        "limit": limit,
+        "offset": offset,
+        "sector": sector,
+        "round_type": round_type,
         "after": str(after) if after else None,
         "before": str(before) if before else None,
         "is_lead": is_lead,
@@ -599,27 +634,31 @@ async def get_investor_rounds(
             )
             for ri in rd.investor_participations
         ]
-        data.append(RoundOut(
-            id=rd.id,
-            project=ProjectBrief.model_validate(rd.project),
-            round_type=rd.round_type,
-            amount_usd=rd.amount_usd,
-            valuation_usd=rd.valuation_usd,
-            date=rd.date,
-            chains=rd.chains,
-            sector=rd.sector,
-            category=rd.category,
-            source_url=rd.source_url,
-            source_type=rd.source_type,
-            confidence=rd.confidence,
-            investors=investors_out,
-            created_at=rd.created_at,
-        ))
+        data.append(
+            RoundOut(
+                id=rd.id,
+                project=ProjectBrief.model_validate(rd.project),
+                round_type=rd.round_type,
+                amount_usd=rd.amount_usd,
+                valuation_usd=rd.valuation_usd,
+                date=rd.date,
+                chains=rd.chains,
+                sector=rd.sector,
+                category=rd.category,
+                source_url=rd.source_url,
+                source_type=rd.source_type,
+                confidence=rd.confidence,
+                investors=investors_out,
+                created_at=rd.created_at,
+            )
+        )
 
     response = RoundListResponse(
         data=data,
         meta=PaginationMeta(
-            total=total, limit=limit, offset=offset,
+            total=total,
+            limit=limit,
+            offset=offset,
             has_more=offset + limit < total,
         ),
     )
@@ -660,8 +699,7 @@ async def get_investor_sectors(
 
     rows = (await db.execute(stmt)).all()
     data = [
-        InvestorSectorOut(sector=row[0], round_count=row[1], total_invested=row[2])
-        for row in rows
+        InvestorSectorOut(sector=row[0], round_count=row[1], total_invested=row[2]) for row in rows
     ]
 
     json_str = TypeAdapter(list[InvestorSectorOut]).dump_json(data).decode()

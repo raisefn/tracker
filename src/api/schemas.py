@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 # --- Shared ---
 
+
 class PaginationMeta(BaseModel):
     total: int
     limit: int
@@ -13,6 +14,7 @@ class PaginationMeta(BaseModel):
 
 
 # --- Project ---
+
 
 class ProjectBrief(BaseModel):
     id: uuid.UUID
@@ -80,6 +82,7 @@ class ProjectDetail(BaseModel):
 
 # --- Metric Snapshots ---
 
+
 class MetricSnapshotOut(BaseModel):
     source: str
     snapshotted_at: datetime
@@ -94,6 +97,7 @@ class ProjectMetricsHistoryResponse(BaseModel):
 
 
 # --- Co-investor ---
+
 
 class CoInvestorOut(BaseModel):
     id: uuid.UUID
@@ -115,6 +119,7 @@ class InvestorSectorOut(BaseModel):
 
 # --- Investor ---
 
+
 class InvestorBrief(BaseModel):
     id: uuid.UUID
     name: str
@@ -124,6 +129,7 @@ class InvestorBrief(BaseModel):
 
 
 # --- Syndicates ---
+
 
 class SyndicateMemberOut(BaseModel):
     id: uuid.UUID
@@ -144,6 +150,7 @@ class SyndicateResponse(BaseModel):
 
 
 # --- Network stats ---
+
 
 class InvestorNetworkOut(BaseModel):
     total_co_investors: int
@@ -189,6 +196,7 @@ class InvestorDetail(BaseModel):
 
 # --- Round ---
 
+
 class RoundInvestorOut(BaseModel):
     id: uuid.UUID
     name: str
@@ -223,6 +231,7 @@ class RoundOut(BaseModel):
 
 # --- List responses ---
 
+
 class RoundListResponse(BaseModel):
     data: list[RoundOut]
     meta: PaginationMeta
@@ -239,6 +248,7 @@ class ProjectListResponse(BaseModel):
 
 
 # --- Stats ---
+
 
 class RoundTypeBreakdown(BaseModel):
     round_type: str
@@ -296,6 +306,7 @@ class StatsTrendsResponse(BaseModel):
 
 # --- Signals / Derived Metrics ---
 
+
 class SectorMomentumOut(BaseModel):
     sector: str
     current_count: int
@@ -333,6 +344,7 @@ class InvestorVelocityOut(BaseModel):
 
 # --- Community ---
 
+
 class CommunityStatsResponse(BaseModel):
     founders: int
     investors: int
@@ -340,6 +352,7 @@ class CommunityStatsResponse(BaseModel):
 
 
 # --- Search ---
+
 
 class SearchResultOut(BaseModel):
     entity_type: str
@@ -356,6 +369,7 @@ class SearchResponse(BaseModel):
 
 
 # --- Comps ---
+
 
 class CompRoundBrief(BaseModel):
     round_type: str | None
@@ -378,6 +392,7 @@ class CompsResponse(BaseModel):
 
 
 # --- Health ---
+
 
 class HealthResponse(BaseModel):
     status: str

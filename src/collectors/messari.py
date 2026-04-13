@@ -120,8 +120,10 @@ class MessariCollector(BaseCollector):
                         round_type="token_sale",
                         sector="blockchain",
                         project_url=(
-                            profile.get("general", {}).get("overview", {})
-                            .get("official_links", [{}])[0].get("link")
+                            profile.get("general", {})
+                            .get("overview", {})
+                            .get("official_links", [{}])[0]
+                            .get("link")
                             if profile.get("general", {}).get("overview", {}).get("official_links")
                             else None
                         ),
@@ -158,9 +160,7 @@ class MessariCollector(BaseCollector):
         date_str = sale.get("start_date") or sale.get("end_date")
         if date_str:
             try:
-                round_date = datetime.fromisoformat(
-                    str(date_str).replace("Z", "+00:00")
-                ).date()
+                round_date = datetime.fromisoformat(str(date_str).replace("Z", "+00:00")).date()
             except Exception:
                 pass
 

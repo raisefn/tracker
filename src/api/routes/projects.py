@@ -38,8 +38,13 @@ async def list_projects(
     ),
 ):
     params = {
-        "limit": limit, "offset": offset, "sector": sector,
-        "chain": chain, "status": status, "search": search, "sort": sort,
+        "limit": limit,
+        "offset": offset,
+        "sector": sector,
+        "chain": chain,
+        "status": status,
+        "search": search,
+        "sort": sort,
     }
     ck = cache_key("projects", params)
 
@@ -89,7 +94,9 @@ async def list_projects(
     response = ProjectListResponse(
         data=[ProjectDetail.model_validate(proj) for proj in projects],
         meta=PaginationMeta(
-            total=total, limit=limit, offset=offset,
+            total=total,
+            limit=limit,
+            offset=offset,
             has_more=offset + limit < total,
         ),
     )
@@ -103,9 +110,7 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Project)
-        .options(selectinload(Project.founders))
-        .where(Project.slug == slug)
+        select(Project).options(selectinload(Project.founders)).where(Project.slug == slug)
     )
     project = result.scalar_one_or_none()
     if project is None:
@@ -121,13 +126,12 @@ async def get_project_metrics_history(
     days: int = Query(default=30, ge=1, le=365),
 ):
     """Get historical metric snapshots for a project."""
-    project = (
-        await db.execute(select(Project).where(Project.slug == slug))
-    ).scalar_one_or_none()
+    project = (await db.execute(select(Project).where(Project.slug == slug))).scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
     from datetime import datetime, timedelta, timezone
+
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     stmt = (

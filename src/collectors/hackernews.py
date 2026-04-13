@@ -125,9 +125,7 @@ class HackerNewsFundingCollector(BaseCollector):
         # Parse date
         created_at = hit.get("created_at", "")
         try:
-            article_date = datetime.fromisoformat(
-                created_at.replace("Z", "+00:00")
-            ).date()
+            article_date = datetime.fromisoformat(created_at.replace("Z", "+00:00")).date()
         except Exception:
             article_date = date.today()
 

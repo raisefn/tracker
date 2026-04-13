@@ -105,24 +105,26 @@ class YCDirectoryCollector(BaseCollector):
             industry = company.get("industry", "")
             sector = YC_INDUSTRY_MAP.get(industry)
 
-            rounds.append(RawRound(
-                project_name=name,
-                date=_batch_to_date(batch),
-                project_url=company.get("url"),
-                sector=sector,
-                raw_data={
-                    "source": "yc_directory",
-                    "batch": batch,
-                    "industry": industry,
-                    "tags": company.get("tags", []),
-                    "one_liner": company.get("one_liner"),
-                    "team_size": company.get("team_size"),
-                    "location": company.get("location"),
-                    "status": company.get("status"),
-                    "accelerator": "Y Combinator",
-                    "accelerator_batch": batch,
-                },
-            ))
+            rounds.append(
+                RawRound(
+                    project_name=name,
+                    date=_batch_to_date(batch),
+                    project_url=company.get("url"),
+                    sector=sector,
+                    raw_data={
+                        "source": "yc_directory",
+                        "batch": batch,
+                        "industry": industry,
+                        "tags": company.get("tags", []),
+                        "one_liner": company.get("one_liner"),
+                        "team_size": company.get("team_size"),
+                        "location": company.get("location"),
+                        "status": company.get("status"),
+                        "accelerator": "Y Combinator",
+                        "accelerator_batch": batch,
+                    },
+                )
+            )
 
         logger.info(f"Parsed {len(rounds)} active companies from YC directory")
         return rounds

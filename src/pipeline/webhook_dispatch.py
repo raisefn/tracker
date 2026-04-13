@@ -22,16 +22,12 @@ def _sign_payload(payload: bytes, secret: str) -> str:
     return hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
 
-async def dispatch_event(
-    session: AsyncSession, event: str, data: dict
-) -> int:
+async def dispatch_event(session: AsyncSession, event: str, data: dict) -> int:
     """Send event to all active webhooks subscribed to this event type.
 
     Returns the number of successful deliveries.
     """
-    result = await session.execute(
-        select(Webhook).where(Webhook.is_active.is_(True))
-    )
+    result = await session.execute(select(Webhook).where(Webhook.is_active.is_(True)))
     webhooks = result.scalars().all()
 
     delivered = 0
@@ -46,6 +42,7 @@ async def dispatch_event(
         }
 
         import json
+
         payload_bytes = json.dumps(payload_dict, default=str).encode()
         signature = _sign_payload(payload_bytes, wh.secret)
 
@@ -58,20 +55,24 @@ async def dispatch_event(
         async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
             for attempt in range(MAX_RETRIES):
                 try:
-                    resp = await client.post(
-                        wh.url, content=payload_bytes, headers=headers
-                    )
+                    resp = await client.post(wh.url, content=payload_bytes, headers=headers)
                     if resp.status_code < 400:
                         delivered += 1
                         break
                     logger.warning(
                         "Webhook %s returned %d (attempt %d/%d)",
-                        wh.url, resp.status_code, attempt + 1, MAX_RETRIES,
+                        wh.url,
+                        resp.status_code,
+                        attempt + 1,
+                        MAX_RETRIES,
                     )
                 except Exception as e:
                     logger.warning(
                         "Webhook %s failed (attempt %d/%d): %s",
-                        wh.url, attempt + 1, MAX_RETRIES, e,
+                        wh.url,
+                        attempt + 1,
+                        MAX_RETRIES,
+                        e,
                     )
 
     return delivered

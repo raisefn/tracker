@@ -112,13 +112,13 @@ async def stats_overview(
         capital_pct = None
         if prior_row.total_rounds and prior_row.total_rounds > 0:
             rounds_pct = round(
-                (total_rounds - prior_row.total_rounds)
-                / prior_row.total_rounds * 100, 1,
+                (total_rounds - prior_row.total_rounds) / prior_row.total_rounds * 100,
+                1,
             )
         if prior_row.total_capital and prior_row.total_capital > 0 and total_capital:
             capital_pct = round(
-                (total_capital - int(prior_row.total_capital))
-                / int(prior_row.total_capital) * 100, 1,
+                (total_capital - int(prior_row.total_capital)) / int(prior_row.total_capital) * 100,
+                1,
             )
         prior_change = PeriodChange(total_rounds_pct=rounds_pct, total_capital_pct=capital_pct)
 
@@ -175,6 +175,7 @@ async def stats_sectors(
     ]
 
     from pydantic import TypeAdapter
+
     json_str = TypeAdapter(list[SectorStatsOut]).dump_json(data).decode()
     await set_cached(r, ck, json_str)
     return data
@@ -217,7 +218,9 @@ async def stats_investors(
     active_rows = (await db.execute(active_stmt)).all()
     most_active = [
         TopInvestorOut(
-            id=r.id, name=r.name, slug=r.slug,
+            id=r.id,
+            name=r.name,
+            slug=r.slug,
             round_count=r.round_count,
             total_deployed=int(r.total_deployed) if r.total_deployed else None,
         )
@@ -244,7 +247,9 @@ async def stats_investors(
     deployer_rows = (await db.execute(deployer_stmt)).all()
     biggest_deployers = [
         TopInvestorOut(
-            id=r.id, name=r.name, slug=r.slug,
+            id=r.id,
+            name=r.name,
+            slug=r.slug,
             round_count=r.round_count,
             total_deployed=int(r.total_deployed) if r.total_deployed else None,
         )
@@ -269,10 +274,15 @@ async def stats_trends(
     sector: str | None = Query(default=None),
     period: str = Query(default="1y", pattern="^(30d|90d|1y|all)$"),
 ):
-    ck = cache_key("stats_trends", {
-        "metric": metric, "granularity": granularity,
-        "sector": sector, "period": period,
-    })
+    ck = cache_key(
+        "stats_trends",
+        {
+            "metric": metric,
+            "granularity": granularity,
+            "sector": sector,
+            "period": period,
+        },
+    )
     cached = await get_cached(r, ck)
     if cached:
         return Response(content=cached, media_type="application/json")
@@ -293,12 +303,7 @@ async def stats_trends(
     else:  # avg_size
         value_col = cast(func.avg(Round.amount_usd), Float).label("value")
 
-    stmt = (
-        select(period_col, value_col)
-        .where(*filters)
-        .group_by(period_col)
-        .order_by(period_col)
-    )
+    stmt = select(period_col, value_col).where(*filters).group_by(period_col).order_by(period_col)
 
     rows = (await db.execute(stmt)).all()
     data = [
@@ -377,20 +382,23 @@ async def stats_momentum(
         if pri_cap and pri_cap > 0 and cur_cap:
             cap_change_pct = round((cur_cap - pri_cap) / pri_cap * 100, 1)
 
-        data.append(SectorMomentumOut(
-            sector=sector,
-            current_count=cur_count,
-            prior_count=pri_count,
-            change_pct=change_pct,
-            current_capital=cur_cap,
-            prior_capital=pri_cap,
-            capital_change_pct=cap_change_pct,
-        ))
+        data.append(
+            SectorMomentumOut(
+                sector=sector,
+                current_count=cur_count,
+                prior_count=pri_count,
+                change_pct=change_pct,
+                current_capital=cur_cap,
+                prior_capital=pri_cap,
+                capital_change_pct=cap_change_pct,
+            )
+        )
 
     # Sort by change_pct descending (hottest sectors first)
     data.sort(key=lambda x: x.change_pct or -999, reverse=True)
 
     from pydantic import TypeAdapter
+
     json_str = TypeAdapter(list[SectorMomentumOut]).dump_json(data).decode()
     await set_cached(r, ck, json_str)
     return data
@@ -484,6 +492,7 @@ async def stats_signals(
     ]
 
     from pydantic import TypeAdapter
+
     json_str = TypeAdapter(list[ProjectSignalOut]).dump_json(data).decode()
     await set_cached(r, ck, json_str)
     return data
@@ -508,22 +517,23 @@ async def stats_velocity(
             Investor.id,
             Investor.name,
             Investor.slug,
-            func.count(RoundInvestor.round_id).filter(
-                Round.date >= today - timedelta(days=30)
-            ).label("deals_30d"),
-            func.count(RoundInvestor.round_id).filter(
-                Round.date >= today - timedelta(days=90)
-            ).label("deals_90d"),
-            func.count(RoundInvestor.round_id).filter(
-                Round.date >= today - timedelta(days=365)
-            ).label("deals_365d"),
+            func.count(RoundInvestor.round_id)
+            .filter(Round.date >= today - timedelta(days=30))
+            .label("deals_30d"),
+            func.count(RoundInvestor.round_id)
+            .filter(Round.date >= today - timedelta(days=90))
+            .label("deals_90d"),
+            func.count(RoundInvestor.round_id)
+            .filter(Round.date >= today - timedelta(days=365))
+            .label("deals_365d"),
             func.count(RoundInvestor.round_id).label("total_deals"),
             # Average days between deals: (last deal - first deal) / (count - 1)
             case(
                 (
                     func.count(RoundInvestor.round_id) > 1,
                     cast(
-                        func.extract("epoch", func.max(Round.date) - func.min(Round.date)) / 86400
+                        func.extract("epoch", func.max(Round.date) - func.min(Round.date))
+                        / 86400
                         / (func.count(RoundInvestor.round_id) - 1),
                         Float,
                     ),
@@ -536,9 +546,9 @@ async def stats_velocity(
         .group_by(Investor.id, Investor.name, Investor.slug)
         .having(func.count(RoundInvestor.round_id) >= 3)  # Only investors with 3+ deals
         .order_by(
-            func.count(RoundInvestor.round_id).filter(
-                Round.date >= today - timedelta(days=90)
-            ).desc()
+            func.count(RoundInvestor.round_id)
+            .filter(Round.date >= today - timedelta(days=90))
+            .desc()
         )
         .limit(limit)
     )
@@ -559,6 +569,7 @@ async def stats_velocity(
     ]
 
     from pydantic import TypeAdapter
+
     json_str = TypeAdapter(list[InvestorVelocityOut]).dump_json(data).decode()
     await set_cached(r, ck, json_str)
     return data
@@ -576,9 +587,7 @@ async def stats_community(
         return Response(content=cached, media_type="application/json")
 
     # Query brain-owned user_profiles table (same database)
-    stmt = text(
-        "SELECT role, COUNT(*) as cnt FROM user_profiles GROUP BY role"
-    )
+    stmt = text("SELECT role, COUNT(*) as cnt FROM user_profiles GROUP BY role")
     rows = (await db.execute(stmt)).all()
     counts = {row.role: row.cnt for row in rows}
 

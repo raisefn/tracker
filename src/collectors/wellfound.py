@@ -31,12 +31,10 @@ class WellfoundEnricher(BaseEnricher):
 
         # Get projects that haven't been enriched by wellfound recently
         projects = (
-            await session.execute(
-                select(Project)
-                .where(Project.status == "active")
-                .limit(100)
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.status == "active").limit(100)))
+            .scalars()
+            .all()
+        )
 
         async with httpx.AsyncClient(
             timeout=15,
@@ -100,9 +98,7 @@ class WellfoundEnricher(BaseEnricher):
                 pass
 
         # Extract location
-        location_match = re.search(
-            r'"address":\s*\{[^}]*"addressLocality":\s*"([^"]+)"', html
-        )
+        location_match = re.search(r'"address":\s*\{[^}]*"addressLocality":\s*"([^"]+)"', html)
         if location_match and not project.location:
             project.location = location_match.group(1).strip()
             updated = True

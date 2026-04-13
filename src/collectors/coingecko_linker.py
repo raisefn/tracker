@@ -20,16 +20,73 @@ logger = logging.getLogger(__name__)
 COINGECKO_LIST_URL = "https://api.coingecko.com/api/v3/coins/list"
 
 # Common words that produce false-positive matches
-BLOCKLIST = frozenset({
-    "the", "app", "pay", "one", "go", "now", "home", "hub", "cash", "safe",
-    "link", "swap", "core", "open", "play", "mint", "fund", "gold", "real",
-    "edge", "key", "arc", "rise", "nest", "dash", "ion", "via", "atlas",
-    "pulse", "wave", "shift", "bridge", "shield", "spark", "flash", "storm",
-    "global", "prime", "alpha", "beta", "delta", "sigma", "omega",
-    "capital", "ventures", "labs", "protocol", "finance", "network",
-    "digital", "technologies", "solutions", "systems", "group", "inc",
-    "token", "coin", "chain", "block", "crypto", "defi", "dao", "nft",
-})
+BLOCKLIST = frozenset(
+    {
+        "the",
+        "app",
+        "pay",
+        "one",
+        "go",
+        "now",
+        "home",
+        "hub",
+        "cash",
+        "safe",
+        "link",
+        "swap",
+        "core",
+        "open",
+        "play",
+        "mint",
+        "fund",
+        "gold",
+        "real",
+        "edge",
+        "key",
+        "arc",
+        "rise",
+        "nest",
+        "dash",
+        "ion",
+        "via",
+        "atlas",
+        "pulse",
+        "wave",
+        "shift",
+        "bridge",
+        "shield",
+        "spark",
+        "flash",
+        "storm",
+        "global",
+        "prime",
+        "alpha",
+        "beta",
+        "delta",
+        "sigma",
+        "omega",
+        "capital",
+        "ventures",
+        "labs",
+        "protocol",
+        "finance",
+        "network",
+        "digital",
+        "technologies",
+        "solutions",
+        "systems",
+        "group",
+        "inc",
+        "token",
+        "coin",
+        "chain",
+        "block",
+        "crypto",
+        "defi",
+        "dao",
+        "nft",
+    }
+)
 
 
 class CoinGeckoLinker(BaseEnricher):
@@ -65,10 +122,10 @@ class CoinGeckoLinker(BaseEnricher):
 
         # Get projects that don't already have a coingecko_id
         projects = (
-            await session.execute(
-                select(Project).where(Project.coingecko_id.is_(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.coingecko_id.is_(None))))
+            .scalars()
+            .all()
+        )
 
         logger.info(f"Projects without coingecko_id: {len(projects)}")
 
@@ -112,10 +169,21 @@ class CoinGeckoLinker(BaseEnricher):
             return coin
 
         # 2. Try with common suffixes stripped
-        for suffix in [" protocol", " finance", " network", " token", " dao",
-                       " labs", " ai", " io", " app", " chain", " exchange"]:
+        for suffix in [
+            " protocol",
+            " finance",
+            " network",
+            " token",
+            " dao",
+            " labs",
+            " ai",
+            " io",
+            " app",
+            " chain",
+            " exchange",
+        ]:
             if name_lower.endswith(suffix):
-                base = name_lower[:-len(suffix)].strip()
+                base = name_lower[: -len(suffix)].strip()
                 if base and base not in BLOCKLIST and len(base) >= 3:
                     coin = name_map.get(base)
                     if coin:

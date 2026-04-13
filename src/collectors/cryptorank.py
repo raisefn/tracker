@@ -78,12 +78,7 @@ class CryptoRankCollector(BaseCollector):
             return []
 
         data = json.loads(next_data.string)
-        items = (
-            data.get("props", {})
-            .get("pageProps", {})
-            .get("fallbackRounds", {})
-            .get("data", [])
-        )
+        items = data.get("props", {}).get("pageProps", {}).get("fallbackRounds", {}).get("data", [])
 
         rounds: list[RawRound] = []
         for item in items:
@@ -124,9 +119,7 @@ class CryptoRankCollector(BaseCollector):
         date_str = item.get("date")
         if date_str:
             try:
-                round_date = datetime.fromisoformat(
-                    date_str.replace("Z", "+00:00")
-                ).date()
+                round_date = datetime.fromisoformat(date_str.replace("Z", "+00:00")).date()
             except Exception:
                 pass
 

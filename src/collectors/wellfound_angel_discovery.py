@@ -73,7 +73,6 @@ DISCOVERY_QUERIES = [
     'site:linkedin.com/in "angel" "50+ investments"',
     'site:linkedin.com/in "angel" "100+ investments"',
     'site:linkedin.com/in "check writer" "startups"',
-
     # Sector-specific
     'site:linkedin.com/in "angel investor" "fintech"',
     'site:linkedin.com/in "angel investor" "AI"',
@@ -109,7 +108,6 @@ DISCOVERY_QUERIES = [
     'site:linkedin.com/in "angel investor" "logistics"',
     'site:linkedin.com/in "angel investor" "space"',
     'site:linkedin.com/in "angel investor" "defense"',
-
     # Location-specific
     'site:linkedin.com/in "angel investor" "San Francisco"',
     'site:linkedin.com/in "angel investor" "New York"',
@@ -181,9 +179,7 @@ class LinkedInAngelDiscovery(BaseEnricher):
                         seen_names.add(name)
 
                         try:
-                            created = await self._create_investor(
-                                session, person, created_slugs
-                            )
+                            created = await self._create_investor(session, person, created_slugs)
                             if created:
                                 new_count += 1
                                 result.records_updated += 1
@@ -218,9 +214,7 @@ class LinkedInAngelDiscovery(BaseEnricher):
         )
         return result
 
-    async def _search_ddg(
-        self, client: httpx.AsyncClient, query: str
-    ) -> list[dict]:
+    async def _search_ddg(self, client: httpx.AsyncClient, query: str) -> list[dict]:
         """Search DDG and extract people data from result snippets.
 
         Returns list of dicts with keys: name, headline, location, linkedin_url
@@ -270,12 +264,14 @@ class LinkedInAngelDiscovery(BaseEnricher):
                 headline = self._extract_headline(snippet_text)
                 location = self._extract_location(snippet_text, link_text)
 
-            people.append({
-                "name": name,
-                "headline": headline,
-                "location": location,
-                "linkedin_url": actual_url.split("?")[0],
-            })
+            people.append(
+                {
+                    "name": name,
+                    "headline": headline,
+                    "location": location,
+                    "linkedin_url": actual_url.split("?")[0],
+                }
+            )
 
         return people
 
@@ -347,12 +343,37 @@ class LinkedInAngelDiscovery(BaseEnricher):
                 return candidate
             # Known metro areas
             metros = [
-                "San Francisco", "New York", "Los Angeles", "Austin", "Miami",
-                "Seattle", "Boston", "Chicago", "Denver", "London", "Berlin",
-                "Singapore", "Toronto", "Tel Aviv", "Dubai", "Mumbai",
-                "Bangalore", "Sydney", "Tokyo", "Seoul", "Paris", "Amsterdam",
-                "Stockholm", "São Paulo", "Lagos", "Nairobi", "Portland",
-                "San Diego", "Atlanta", "Dallas", "Washington",
+                "San Francisco",
+                "New York",
+                "Los Angeles",
+                "Austin",
+                "Miami",
+                "Seattle",
+                "Boston",
+                "Chicago",
+                "Denver",
+                "London",
+                "Berlin",
+                "Singapore",
+                "Toronto",
+                "Tel Aviv",
+                "Dubai",
+                "Mumbai",
+                "Bangalore",
+                "Sydney",
+                "Tokyo",
+                "Seoul",
+                "Paris",
+                "Amsterdam",
+                "Stockholm",
+                "São Paulo",
+                "Lagos",
+                "Nairobi",
+                "Portland",
+                "San Diego",
+                "Atlanta",
+                "Dallas",
+                "Washington",
             ]
             if any(metro.lower() in candidate.lower() for metro in metros):
                 return candidate
@@ -378,9 +399,7 @@ class LinkedInAngelDiscovery(BaseEnricher):
             return False
 
         # Check DB
-        existing = await session.execute(
-            select(Investor.id).where(Investor.slug == slug)
-        )
+        existing = await session.execute(select(Investor.id).where(Investor.slug == slug))
         if existing.scalar_one_or_none() is not None:
             return False
 

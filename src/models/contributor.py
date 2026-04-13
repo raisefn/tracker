@@ -21,6 +21,4 @@ class Contributor(Base, UUIDMixin, TimestampMixin):
     token_prefix: Mapped[str] = mapped_column(String(12))
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    intel_submissions: Mapped[list["InvestorIntel"]] = relationship(
-        back_populates="contributor"
-    )
+    intel_submissions: Mapped[list["InvestorIntel"]] = relationship(back_populates="contributor")

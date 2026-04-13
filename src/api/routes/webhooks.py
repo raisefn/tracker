@@ -89,8 +89,12 @@ async def create_webhook(
     await db.commit()
     await db.refresh(wh)
     return WebhookCreated(
-        id=wh.id, url=wh.url, events=wh.events,
-        owner=wh.owner, is_active=wh.is_active, secret=secret,
+        id=wh.id,
+        url=wh.url,
+        events=wh.events,
+        owner=wh.owner,
+        is_active=wh.is_active,
+        secret=secret,
     )
 
 
@@ -99,9 +103,7 @@ async def list_webhooks(
     owner: str = Query(...),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Webhook).where(Webhook.owner == owner)
-    )
+    result = await db.execute(select(Webhook).where(Webhook.owner == owner))
     return result.scalars().all()
 
 

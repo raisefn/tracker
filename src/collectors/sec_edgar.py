@@ -170,15 +170,17 @@ class SECEdgarCollector(BaseCollector):
                             accession = parts[4].strip()
 
                             if company_name and filing_date:
-                                rounds.append(RawRound(
-                                    project_name=company_name,
-                                    date=filing_date,
-                                    source_url=f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={company_name}&type=D&dateb=&owner=include&count=10",
-                                    raw_data={
-                                        "accession_number": accession,
-                                        "source": "edgar_daily_index",
-                                    },
-                                ))
+                                rounds.append(
+                                    RawRound(
+                                        project_name=company_name,
+                                        date=filing_date,
+                                        source_url=f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={company_name}&type=D&dateb=&owner=include&count=10",
+                                        raw_data={
+                                            "accession_number": accession,
+                                            "source": "edgar_daily_index",
+                                        },
+                                    )
+                                )
             except Exception as e:
                 logger.warning(f"Failed to fetch daily index for {check_date}: {e}")
 
@@ -329,35 +331,35 @@ class SECEdgarBulkCollector(BaseCollector):
                 round_type = self._infer_round_type(exemption, final_amount)
 
                 # Revenue range
-                revenue_range = SEC_REVENUE_RANGES.get(
-                    offering.get("REVENUERANGE", ""), None
-                )
+                revenue_range = SEC_REVENUE_RANGES.get(offering.get("REVENUERANGE", ""), None)
 
                 state = sub.get("STATEORCOUNTRY", "")
                 cik = sub.get("CIK", "")
 
-                rounds.append(RawRound(
-                    project_name=company_name,
-                    date=round_date,
-                    amount_usd=final_amount,
-                    round_type=round_type,
-                    sector=sector,
-                    founders=founders,
-                    source_url=f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type=D",
-                    raw_data={
-                        "cik": cik,
-                        "accession_number": accession,
-                        "state": state,
-                        "industry_group": industry,
-                        "revenue_range": revenue_range,
-                        "federal_exemptions": exemption,
-                        "executives": executive_names,
-                        "total_offering_amount": str(amount) if amount else None,
-                        "total_amount_sold": str(amount_sold) if amount_sold else None,
-                        "date_of_first_sale": str(sale_date) if sale_date else None,
-                        "source": "edgar_bulk",
-                    },
-                ))
+                rounds.append(
+                    RawRound(
+                        project_name=company_name,
+                        date=round_date,
+                        amount_usd=final_amount,
+                        round_type=round_type,
+                        sector=sector,
+                        founders=founders,
+                        source_url=f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type=D",
+                        raw_data={
+                            "cik": cik,
+                            "accession_number": accession,
+                            "state": state,
+                            "industry_group": industry,
+                            "revenue_range": revenue_range,
+                            "federal_exemptions": exemption,
+                            "executives": executive_names,
+                            "total_offering_amount": str(amount) if amount else None,
+                            "total_amount_sold": str(amount_sold) if amount_sold else None,
+                            "date_of_first_sale": str(sale_date) if sale_date else None,
+                            "source": "edgar_bulk",
+                        },
+                    )
+                )
 
         logger.info(f"Parsed {len(rounds)} rounds from SEC EDGAR bulk data")
         return rounds
@@ -449,8 +451,7 @@ class SECEdgarXMLCollector(BaseCollector):
             # Step 1: Paginate through EFTS search results
             filings = await self._search_efts(client)
             logger.info(
-                f"Found {len(filings)} Form D filings "
-                f"({self.start_date} to {self.end_date})"
+                f"Found {len(filings)} Form D filings ({self.start_date} to {self.end_date})"
             )
 
             # Step 2: Fetch and parse XMLs with concurrency limit
@@ -513,18 +514,19 @@ class SECEdgarXMLCollector(BaseCollector):
                 accession = doc_id.split(":")[0] if ":" in doc_id else None
 
                 if cik and accession:
-                    filings.append({
-                        "cik": cik,
-                        "accession": accession,
-                        "file_date": source.get("file_date"),
-                        "display_name": (source.get("display_names") or [None])[0],
-                        "biz_state": (source.get("biz_states") or [None])[0],
-                    })
+                    filings.append(
+                        {
+                            "cik": cik,
+                            "accession": accession,
+                            "file_date": source.get("file_date"),
+                            "display_name": (source.get("display_names") or [None])[0],
+                            "biz_state": (source.get("biz_states") or [None])[0],
+                        }
+                    )
 
             offset += len(hits)
             logger.info(
-                f"EFTS page: {offset}/{total_val} filings "
-                f"({self.start_date} to {self.end_date})"
+                f"EFTS page: {offset}/{total_val} filings ({self.start_date} to {self.end_date})"
             )
 
             if offset >= total_val:
@@ -539,24 +541,19 @@ class SECEdgarXMLCollector(BaseCollector):
         cik = filing["cik"]
         accession = filing["accession"]
         acc_no_dash = accession.replace("-", "")
-        url = (
-            f"https://www.sec.gov/Archives/edgar/data/"
-            f"{cik}/{acc_no_dash}/primary_doc.xml"
-        )
+        url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_dash}/primary_doc.xml"
 
         try:
             for attempt in range(4):
                 resp = await client.get(url)
                 if resp.status_code == 429:
-                    wait = 5 * (2 ** attempt)  # 5, 10, 20, 40 seconds
+                    wait = 5 * (2**attempt)  # 5, 10, 20, 40 seconds
                     logger.debug(f"Rate limited, waiting {wait}s...")
                     await asyncio.sleep(wait)
                     continue
                 if resp.status_code != 200:
                     return None
-                return self._parse_form_d_xml(
-                    resp.text, filing, accession, cik, url
-                )
+                return self._parse_form_d_xml(resp.text, filing, accession, cik, url)
             return None  # All retries exhausted
         except Exception as e:
             logger.debug(f"Failed to fetch XML {url}: {e}")

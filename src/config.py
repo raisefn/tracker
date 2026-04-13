@@ -16,7 +16,11 @@ class Settings(BaseSettings):
     coingecko_api_key: str = ""
     github_token: str = ""
     etherscan_api_key: str = ""
-    cors_origins: list[str] = ["https://raisefn.com", "https://www.raisefn.com", "http://localhost:3000"]
+    cors_origins: list[str] = [
+        "https://raisefn.com",
+        "https://www.raisefn.com",
+        "http://localhost:3000",
+    ]
 
     @model_validator(mode="before")
     @classmethod
@@ -29,9 +33,7 @@ class Settings(BaseSettings):
         if not values.get("database_url") and not os.environ.get("RAISEFN_DATABASE_URL"):
             raw = os.environ.get("DATABASE_URL", "")
             if raw:
-                values["database_url"] = raw.replace(
-                    "postgresql://", "postgresql+asyncpg://", 1
-                )
+                values["database_url"] = raw.replace("postgresql://", "postgresql+asyncpg://", 1)
         if not values.get("redis_url") and not os.environ.get("RAISEFN_REDIS_URL"):
             raw = os.environ.get("REDIS_URL", "")
             if raw:

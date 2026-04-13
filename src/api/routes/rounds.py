@@ -36,9 +36,16 @@ async def list_rounds(
     investor_slug: str | None = Query(default=None),
 ):
     params = {
-        "limit": limit, "offset": offset, "sector": sector, "chain": chain,
-        "round_type": round_type, "min_amount": min_amount, "max_amount": max_amount,
-        "date_from": date_from, "date_to": date_to, "min_confidence": min_confidence,
+        "limit": limit,
+        "offset": offset,
+        "sector": sector,
+        "chain": chain,
+        "round_type": round_type,
+        "min_amount": min_amount,
+        "max_amount": max_amount,
+        "date_from": date_from,
+        "date_to": date_to,
+        "min_confidence": min_confidence,
         "investor_slug": investor_slug,
     }
     ck = cache_key("rounds", params)
@@ -115,7 +122,9 @@ async def list_rounds(
     response = RoundListResponse(
         data=data,
         meta=PaginationMeta(
-            total=total, limit=limit, offset=offset,
+            total=total,
+            limit=limit,
+            offset=offset,
             has_more=offset + limit < total,
         ),
     )

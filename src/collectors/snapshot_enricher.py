@@ -23,9 +23,7 @@ class SnapshotEnricher(BaseEnricher):
     async def enrich(self, session: AsyncSession) -> EnrichmentResult:
         result = EnrichmentResult(source=self.source_name())
 
-        projects = (
-            await session.execute(select(Project))
-        ).scalars().all()
+        projects = (await session.execute(select(Project))).scalars().all()
 
         if not projects:
             return result

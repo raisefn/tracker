@@ -44,30 +44,65 @@ USER_AGENT = (
 
 # Names that are not meaningfully searchable for twitter discovery
 SKIP_NAMES = {
-    "unknown", "undisclosed", "anonymous", "n/a", "na", "none", "tbd", "various",
+    "unknown",
+    "undisclosed",
+    "anonymous",
+    "n/a",
+    "na",
+    "none",
+    "tbd",
+    "various",
 }
 
 # Keywords in Twitter bios that signal an investor
 INVESTOR_KEYWORDS = [
-    "investor", "angel", " vc ", "venture capital", "venture partner",
-    "partner at", "general partner", "managing partner", "founding partner",
-    "investing in", "backed", "seed", "pre-seed", "preseed",
-    "fund manager", "fund of funds", "family office",
-    "limited partner", "lp at", "gp at", "check writer",
-    "angel investor", "angel syndicate", "syndicator",
+    "investor",
+    "angel",
+    " vc ",
+    "venture capital",
+    "venture partner",
+    "partner at",
+    "general partner",
+    "managing partner",
+    "founding partner",
+    "investing in",
+    "backed",
+    "seed",
+    "pre-seed",
+    "preseed",
+    "fund manager",
+    "fund of funds",
+    "family office",
+    "limited partner",
+    "lp at",
+    "gp at",
+    "check writer",
+    "angel investor",
+    "angel syndicate",
+    "syndicator",
 ]
 
 # Keywords that suggest VC affiliation (vs individual angel)
 VC_KEYWORDS = [
-    "partner at", "general partner", "managing partner",
-    "founding partner", "venture partner", "principal at",
-    "venture capital", " vc ", "gp at",
+    "partner at",
+    "general partner",
+    "managing partner",
+    "founding partner",
+    "venture partner",
+    "principal at",
+    "venture capital",
+    " vc ",
+    "gp at",
 ]
 
 # Keywords that suggest individual angel
 ANGEL_KEYWORDS = [
-    "angel investor", "angel", "check writer",
-    "investing in", "backed companies", "personal investments",
+    "angel investor",
+    "angel",
+    "check writer",
+    "investing in",
+    "backed companies",
+    "personal investments",
 ]
 
 
@@ -103,9 +138,7 @@ def _infer_investor_type(bio: str) -> str | None:
     return None
 
 
-async def _fetch_nitter_profile(
-    client: httpx.AsyncClient, handle: str
-) -> dict | None:
+async def _fetch_nitter_profile(client: httpx.AsyncClient, handle: str) -> dict | None:
     """Try to fetch a Twitter profile from Nitter instances.
 
     Returns a dict with keys: bio, location, followers, display_name
@@ -120,9 +153,7 @@ async def _fetch_nitter_profile(
                 logger.debug(f"[{SOURCE_KEY}] @{handle} not found on {instance}")
                 return None
             if resp.status_code != 200:
-                logger.debug(
-                    f"[{SOURCE_KEY}] {instance} returned {resp.status_code} for @{handle}"
-                )
+                logger.debug(f"[{SOURCE_KEY}] {instance} returned {resp.status_code} for @{handle}")
                 continue
 
             return _parse_nitter_html(resp.text)
@@ -208,15 +239,21 @@ def _extract_twitter_handle_from_ddg(html: str) -> str | None:
             if uddg_match:
                 raw_url = unquote(uddg_match.group(1))
 
-        handle_match = re.search(
-            r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)", raw_url
-        )
+        handle_match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)", raw_url)
         if handle_match:
             handle = handle_match.group(1).lower()
             # Skip common non-profile pages
             if handle in {
-                "search", "explore", "home", "i", "intent",
-                "share", "hashtag", "settings", "login", "signup",
+                "search",
+                "explore",
+                "home",
+                "i",
+                "intent",
+                "share",
+                "hashtag",
+                "settings",
+                "login",
+                "signup",
             }:
                 continue
             return handle
@@ -294,9 +331,7 @@ class TwitterBioEnricher(BaseEnricher):
             logger.info(f"[{SOURCE_KEY}] No investors with twitter handles to enrich")
             return
 
-        logger.info(
-            f"[{SOURCE_KEY}] Enriching {len(investors)} investors with existing handles"
-        )
+        logger.info(f"[{SOURCE_KEY}] Enriching {len(investors)} investors with existing handles")
 
         for investor in investors:
             handle = _normalize_handle(investor.twitter)
@@ -354,9 +389,7 @@ class TwitterBioEnricher(BaseEnricher):
             logger.info(f"[{SOURCE_KEY}] No investors for twitter discovery")
             return
 
-        logger.info(
-            f"[{SOURCE_KEY}] Discovering twitter handles for {len(investors)} investors"
-        )
+        logger.info(f"[{SOURCE_KEY}] Discovering twitter handles for {len(investors)} investors")
 
         for investor in investors:
             name = investor.name.strip()
@@ -388,9 +421,7 @@ class TwitterBioEnricher(BaseEnricher):
 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code in (429, 403):
-                    logger.warning(
-                        f"[{SOURCE_KEY}] Rate limited during discovery, stopping"
-                    )
+                    logger.warning(f"[{SOURCE_KEY}] Rate limited during discovery, stopping")
                     result.errors.append(f"Discovery rate limited: {e.response.status_code}")
                     break
                 result.errors.append(f"Discovery {name}: HTTP {e.response.status_code}")
@@ -399,9 +430,7 @@ class TwitterBioEnricher(BaseEnricher):
 
             await asyncio.sleep(REQUEST_DELAY)
 
-    async def _search_for_handle(
-        self, client: httpx.AsyncClient, investor_name: str
-    ) -> str | None:
+    async def _search_for_handle(self, client: httpx.AsyncClient, investor_name: str) -> str | None:
         """Search DuckDuckGo for an investor's Twitter handle."""
         query = f'site:twitter.com "{investor_name}" investor'
         resp = await client.get(DDG_URL, params={"q": query})
@@ -459,6 +488,7 @@ class TwitterBioEnricher(BaseEnricher):
 
         if updated:
             from datetime import datetime, timezone
+
             investor.last_enriched_at = datetime.now(timezone.utc)
 
         return updated

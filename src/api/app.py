@@ -15,7 +15,17 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from src.api.auth import require_api_key
 from src.api.cache import cache_key, get_cached, set_cached
 from src.api.deps import get_db, get_redis
-from src.api.routes import comps, export, intel, investors, projects, rounds, search, stats, webhooks
+from src.api.routes import (
+    comps,
+    export,
+    intel,
+    investors,
+    projects,
+    rounds,
+    search,
+    stats,
+    webhooks,
+)
 from src.api.schemas import HealthResponse
 from src.config import settings
 from src.models import CollectorRun, Investor, Project, Round

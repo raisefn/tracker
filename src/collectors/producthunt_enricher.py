@@ -25,10 +25,10 @@ class ProductHuntEnricher(BaseEnricher):
         result = EnrichmentResult(source=self.source_name())
 
         projects = (
-            await session.execute(
-                select(Project).where(Project.producthunt_slug.isnot(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.producthunt_slug.isnot(None))))
+            .scalars()
+            .all()
+        )
 
         if not projects:
             return result
@@ -55,8 +55,7 @@ class ProductHuntEnricher(BaseEnricher):
 
                 except Exception as e:
                     error_msg = (
-                        f"ProductHunt error for "
-                        f"{project.slug} ({project.producthunt_slug}): {e}"
+                        f"ProductHunt error for {project.slug} ({project.producthunt_slug}): {e}"
                     )
                     logger.warning(error_msg)
                     result.errors.append(error_msg)

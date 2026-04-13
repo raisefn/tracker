@@ -72,19 +72,14 @@ async def get_comps(
         return Response(content=cached, media_type="application/json")
 
     # Load target project
-    target = (
-        await db.execute(select(Project).where(Project.slug == slug))
-    ).scalar_one_or_none()
+    target = (await db.execute(select(Project).where(Project.slug == slug))).scalar_one_or_none()
     if target is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Get target's latest round
     target_round = (
         await db.execute(
-            select(Round)
-            .where(Round.project_id == target.id)
-            .order_by(Round.date.desc())
-            .limit(1)
+            select(Round).where(Round.project_id == target.id).order_by(Round.date.desc()).limit(1)
         )
     ).scalar_one_or_none()
 
@@ -112,13 +107,10 @@ async def get_comps(
             .group_by(Round.project_id)
             .subquery()
         )
-        rounds_stmt = (
-            select(Round)
-            .join(
-                latest_round_sub,
-                (Round.project_id == latest_round_sub.c.project_id)
-                & (Round.date == latest_round_sub.c.max_date),
-            )
+        rounds_stmt = select(Round).join(
+            latest_round_sub,
+            (Round.project_id == latest_round_sub.c.project_id)
+            & (Round.date == latest_round_sub.c.max_date),
         )
         rounds_result = (await db.execute(rounds_stmt)).scalars().all()
         candidate_rounds = {r.project_id: r for r in rounds_result}
@@ -146,7 +138,9 @@ async def get_comps(
                 round_type=cand_round.round_type,
                 amount_usd=cand_round.amount_usd,
                 date=cand_round.date,
-            ) if cand_round else None,
+            )
+            if cand_round
+            else None,
         )
         for cand, score, reasons, cand_round in scored
     ]

@@ -322,15 +322,15 @@ class AcceleratorDirectoryCollector(BaseCollector):
                 try:
                     rounds = await self._scrape_program(client, program)
                     all_rounds.extend(rounds)
-                    logger.info(
-                        f"[accel_dir] {program.name}: {len(rounds)} companies"
-                    )
+                    logger.info(f"[accel_dir] {program.name}: {len(rounds)} companies")
                 except Exception as e:
                     logger.warning(f"[accel_dir] {program.name} failed: {e}")
 
                 await asyncio.sleep(REQUEST_DELAY)
 
-        logger.info(f"[accel_dir] Total: {len(all_rounds)} companies from {len(ACCELERATORS)} programs")
+        logger.info(
+            f"[accel_dir] Total: {len(all_rounds)} companies from {len(ACCELERATORS)} programs"
+        )
         return all_rounds
 
     async def _scrape_program(
@@ -343,9 +343,7 @@ class AcceleratorDirectoryCollector(BaseCollector):
         try:
             resp = await client.get(program.portfolio_url)
             if resp.status_code != 200:
-                logger.warning(
-                    f"[accel_dir] {program.name} returned {resp.status_code}"
-                )
+                logger.warning(f"[accel_dir] {program.name} returned {resp.status_code}")
                 return rounds
         except Exception as e:
             logger.warning(f"[accel_dir] {program.name} fetch error: {e}")
@@ -371,9 +369,7 @@ class AcceleratorDirectoryCollector(BaseCollector):
 
         return rounds
 
-    def _extract_companies(
-        self, soup: BeautifulSoup, program: AcceleratorProgram
-    ) -> list[dict]:
+    def _extract_companies(self, soup: BeautifulSoup, program: AcceleratorProgram) -> list[dict]:
         """Extract company data from HTML using multiple strategies."""
         companies: list[dict] = []
 
@@ -466,9 +462,15 @@ class AcceleratorDirectoryCollector(BaseCollector):
 
         # Pattern: grid of linked logos/cards
         for container_sel in [
-            ".portfolio", ".companies", ".startups", ".alumni",
-            "[class*='portfolio']", "[class*='company']", "[class*='startup']",
-            "#portfolio", "#companies",
+            ".portfolio",
+            ".companies",
+            ".startups",
+            ".alumni",
+            "[class*='portfolio']",
+            "[class*='company']",
+            "[class*='startup']",
+            "#portfolio",
+            "#companies",
         ]:
             container = soup.select_one(container_sel)
             if not container:
@@ -494,10 +496,12 @@ class AcceleratorDirectoryCollector(BaseCollector):
                         if program.slug not in href:
                             website = href
 
-                    companies.append({
-                        "name": name,
-                        "website": website,
-                    })
+                    companies.append(
+                        {
+                            "name": name,
+                            "website": website,
+                        }
+                    )
 
             if companies:
                 break
@@ -513,6 +517,7 @@ class AcceleratorDirectoryCollector(BaseCollector):
         if script and script.string:
             try:
                 import json
+
                 data = json.loads(script.string)
                 companies.extend(self._walk_json_for_companies(data, program))
             except Exception:
@@ -523,22 +528,27 @@ class AcceleratorDirectoryCollector(BaseCollector):
             if script.string:
                 try:
                     import json
+
                     data = json.loads(script.string)
                     if isinstance(data, dict) and data.get("@type") == "ItemList":
                         for item in data.get("itemListElement", []):
                             name = item.get("name", "")
                             if name:
-                                companies.append({
-                                    "name": name,
-                                    "website": item.get("url"),
-                                    "description": item.get("description"),
-                                })
+                                companies.append(
+                                    {
+                                        "name": name,
+                                        "website": item.get("url"),
+                                        "description": item.get("description"),
+                                    }
+                                )
                 except Exception:
                     pass
 
         return companies
 
-    def _walk_json_for_companies(self, data, program: AcceleratorProgram, depth: int = 0) -> list[dict]:
+    def _walk_json_for_companies(
+        self, data, program: AcceleratorProgram, depth: int = 0
+    ) -> list[dict]:
         """Recursively walk JSON looking for arrays of company-like objects."""
         if depth > 8:
             return []
@@ -561,17 +571,19 @@ class AcceleratorDirectoryCollector(BaseCollector):
                         or item.get("title", "")
                     ).strip()
                     if name and 2 < len(name) < 100:
-                        companies.append({
-                            "name": name,
-                            "website": item.get("website") or item.get("url"),
-                            "description": (
-                                item.get("description")
-                                or item.get("blurb")
-                                or item.get("one_liner")
-                            ),
-                            "location": item.get("location") or item.get("city"),
-                            "batch": item.get("batch") or item.get("cohort"),
-                        })
+                        companies.append(
+                            {
+                                "name": name,
+                                "website": item.get("website") or item.get("url"),
+                                "description": (
+                                    item.get("description")
+                                    or item.get("blurb")
+                                    or item.get("one_liner")
+                                ),
+                                "location": item.get("location") or item.get("city"),
+                                "batch": item.get("batch") or item.get("cohort"),
+                            }
+                        )
                 if companies:
                     return companies
 
@@ -598,9 +610,23 @@ class AcceleratorDirectoryCollector(BaseCollector):
 
         # Skip navigation/menu items
         skip_words = {
-            "home", "about", "contact", "portfolio", "apply", "blog",
-            "team", "news", "press", "careers", "privacy", "terms",
-            "login", "sign up", "menu", "close", "search",
+            "home",
+            "about",
+            "contact",
+            "portfolio",
+            "apply",
+            "blog",
+            "team",
+            "news",
+            "press",
+            "careers",
+            "privacy",
+            "terms",
+            "login",
+            "sign up",
+            "menu",
+            "close",
+            "search",
         }
         if name.lower() in skip_words:
             return None

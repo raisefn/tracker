@@ -323,9 +323,17 @@ class AngelGroupScraper(BaseEnricher):
                     and text
                     and len(text) > 4
                     and len(text) < 200
-                    and any(kw in text.lower() for kw in [
-                        "angel", "investor", "venture", "fund", "network", "capital",
-                    ])
+                    and any(
+                        kw in text.lower()
+                        for kw in [
+                            "angel",
+                            "investor",
+                            "venture",
+                            "fund",
+                            "network",
+                            "capital",
+                        ]
+                    )
                 ):
                     groups.append({"name": text, "website": href})
 
@@ -730,12 +738,33 @@ class AngelGroupScraper(BaseEnricher):
         """Extract investment focus areas from page text."""
         text = soup.get_text(" ", strip=True).lower()
         focus_keywords = [
-            "technology", "software", "saas", "healthcare", "healthtech",
-            "biotech", "fintech", "cleantech", "climate", "ai",
-            "artificial intelligence", "machine learning", "consumer",
-            "enterprise", "hardware", "iot", "medtech", "edtech",
-            "cybersecurity", "deep tech", "life sciences", "digital health",
-            "agtech", "foodtech", "proptech", "robotics", "blockchain",
+            "technology",
+            "software",
+            "saas",
+            "healthcare",
+            "healthtech",
+            "biotech",
+            "fintech",
+            "cleantech",
+            "climate",
+            "ai",
+            "artificial intelligence",
+            "machine learning",
+            "consumer",
+            "enterprise",
+            "hardware",
+            "iot",
+            "medtech",
+            "edtech",
+            "cybersecurity",
+            "deep tech",
+            "life sciences",
+            "digital health",
+            "agtech",
+            "foodtech",
+            "proptech",
+            "robotics",
+            "blockchain",
         ]
         found = [kw for kw in focus_keywords if kw in text]
         return found[:10] if found else None
@@ -787,13 +816,16 @@ class AngelGroupScraper(BaseEnricher):
         for link in soup.find_all("a", href=True):
             href = link.get("href", "")
             if isinstance(href, str):
-                twitter_match = re.search(
-                    r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)/?$", href
-                )
+                twitter_match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)/?$", href)
                 if twitter_match:
                     handle = twitter_match.group(1)
                     if handle.lower() not in (
-                        "share", "intent", "home", "search", "login", "signup",
+                        "share",
+                        "intent",
+                        "home",
+                        "search",
+                        "login",
+                        "signup",
                     ):
                         return f"@{handle}"
 

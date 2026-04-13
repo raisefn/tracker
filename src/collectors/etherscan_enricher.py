@@ -30,24 +30,21 @@ class EtherscanEnricher(BaseEnricher):
 
         # Only enrich projects with a known Ethereum token contract
         projects = (
-            await session.execute(
-                select(Project).where(Project.token_contract.isnot(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.token_contract.isnot(None))))
+            .scalars()
+            .all()
+        )
 
         if not projects:
             logger.info(
-                "No projects with token_contract found."
-                " Run CoinGecko community enricher first."
+                "No projects with token_contract found. Run CoinGecko community enricher first."
             )
             return result
 
         async with httpx.AsyncClient(timeout=15.0) as client:
             for project in projects:
                 try:
-                    holder_count = await self._fetch_holder_count(
-                        client, project.token_contract
-                    )
+                    holder_count = await self._fetch_holder_count(client, project.token_contract)
 
                     if holder_count is None:
                         result.records_skipped += 1
@@ -62,8 +59,7 @@ class EtherscanEnricher(BaseEnricher):
 
                 except Exception as e:
                     error_msg = (
-                        f"Etherscan error for "
-                        f"{project.slug} ({project.token_contract}): {e}"
+                        f"Etherscan error for {project.slug} ({project.token_contract}): {e}"
                     )
                     logger.warning(error_msg)
                     result.errors.append(error_msg)

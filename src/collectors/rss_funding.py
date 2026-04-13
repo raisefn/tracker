@@ -268,15 +268,11 @@ class RSSFundingCollector(BaseCollector):
         root = ET.fromstring(resp.text)
 
         # Handle both RSS 2.0 and Atom feeds
-        items = root.findall(".//item") or root.findall(
-            ".//{http://www.w3.org/2005/Atom}entry"
-        )
+        items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
 
         for item in items:
             title = (
-                item.findtext("title")
-                or item.findtext("{http://www.w3.org/2005/Atom}title")
-                or ""
+                item.findtext("title") or item.findtext("{http://www.w3.org/2005/Atom}title") or ""
             )
             link = (
                 item.findtext("link")

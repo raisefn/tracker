@@ -36,11 +36,28 @@ SKIP_NAMES = {"unknown", "undisclosed", "anonymous", "n/a", "na", "none", "tbd",
 
 # Social media domains to exclude when looking for a company/fund website
 SOCIAL_DOMAINS = {
-    "linkedin.com", "twitter.com", "x.com", "facebook.com", "instagram.com",
-    "youtube.com", "tiktok.com", "reddit.com", "medium.com", "github.com",
-    "crunchbase.com", "pitchbook.com", "angel.co", "wellfound.com",
-    "google.com", "wikipedia.org", "duckduckgo.com", "bing.com",
-    "bloomberg.com", "forbes.com", "techcrunch.com", "sec.gov",
+    "linkedin.com",
+    "twitter.com",
+    "x.com",
+    "facebook.com",
+    "instagram.com",
+    "youtube.com",
+    "tiktok.com",
+    "reddit.com",
+    "medium.com",
+    "github.com",
+    "crunchbase.com",
+    "pitchbook.com",
+    "angel.co",
+    "wellfound.com",
+    "google.com",
+    "wikipedia.org",
+    "duckduckgo.com",
+    "bing.com",
+    "bloomberg.com",
+    "forbes.com",
+    "techcrunch.com",
+    "sec.gov",
 }
 
 
@@ -53,8 +70,16 @@ def _is_searchable(name: str) -> bool:
         return False
     # Single generic word
     if len(cleaned.split()) == 1 and cleaned.lower() in {
-        "investor", "fund", "capital", "ventures", "partners", "group",
-        "holdings", "management", "advisors", "associates",
+        "investor",
+        "fund",
+        "capital",
+        "ventures",
+        "partners",
+        "group",
+        "holdings",
+        "management",
+        "advisors",
+        "associates",
     }:
         return False
     return True
@@ -309,9 +334,7 @@ class WebSearchEnricher(BaseEnricher):
         )
         return result
 
-    async def _search_investor(
-        self, client: httpx.AsyncClient, investor: Investor
-    ) -> bool:
+    async def _search_investor(self, client: httpx.AsyncClient, investor: Investor) -> bool:
         """Search DuckDuckGo for an investor and extract profile data."""
         query = f'"{investor.name}" investor'
         resp = await client.get(DDG_URL, params={"q": query})
@@ -369,6 +392,7 @@ class WebSearchEnricher(BaseEnricher):
 
         if updated:
             from datetime import datetime, timezone
+
             investor.last_enriched_at = datetime.now(timezone.utc)
 
         return updated

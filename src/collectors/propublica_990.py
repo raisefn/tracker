@@ -32,14 +32,14 @@ HEADERS = {
 
 # NTEE codes related to venture/startup investment
 INVESTMENT_NTEE_CODES = [
-    "T",   # Philanthropy, Voluntarism & Grantmaking Foundations
-    "T20", # Private Grantmaking Foundations
-    "T21", # Corporate Foundations
-    "T22", # Private Independent Foundations
-    "T30", # Public Foundations
-    "S",   # Community Improvement & Capacity Building
-    "U",   # Science & Technology
-    "W",   # Public & Societal Benefit
+    "T",  # Philanthropy, Voluntarism & Grantmaking Foundations
+    "T20",  # Private Grantmaking Foundations
+    "T21",  # Corporate Foundations
+    "T22",  # Private Independent Foundations
+    "T30",  # Public Foundations
+    "S",  # Community Improvement & Capacity Building
+    "U",  # Science & Technology
+    "W",  # Public & Societal Benefit
 ]
 
 # Search terms to find family foundations with investment activity

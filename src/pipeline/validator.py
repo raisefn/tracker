@@ -7,11 +7,11 @@ BITCOIN_GENESIS = date(2009, 1, 3)
 
 # Patterns that indicate a junk project name (SEC EDGAR artifacts, dollar amounts, CIK numbers)
 _JUNK_NAME_PATTERNS = [
-    re.compile(r"^\$"),                    # Starts with dollar sign
-    re.compile(r"^\d{5,}\)?$"),            # CIK numbers, optionally with trailing paren
-    re.compile(r"^[0-9\s\-\(\)]+$"),       # Only digits, spaces, hyphens, parens
-    re.compile(r"^\$?\d+[MBKmk]?\s"),      # Starts with money amount ("$2M ", "$100M ")
-    re.compile(r"^N/?A\b"),                # Starts with N/A
+    re.compile(r"^\$"),  # Starts with dollar sign
+    re.compile(r"^\d{5,}\)?$"),  # CIK numbers, optionally with trailing paren
+    re.compile(r"^[0-9\s\-\(\)]+$"),  # Only digits, spaces, hyphens, parens
+    re.compile(r"^\$?\d+[MBKmk]?\s"),  # Starts with money amount ("$2M ", "$100M ")
+    re.compile(r"^N/?A\b"),  # Starts with N/A
     re.compile(r"^(See|None|Unknown|Test|Example)\b", re.I),  # Placeholder names
 ]
 
@@ -29,6 +29,7 @@ def is_valid_project_name(name: str) -> bool:
         if pattern.search(name):
             return False
     return True
+
 
 # Cross-source corroboration: each additional source confirming a round
 CORROBORATION_BOOST = 0.1

@@ -23,9 +23,7 @@ class HackerNewsEnricher(BaseEnricher):
     async def enrich(self, session: AsyncSession) -> EnrichmentResult:
         result = EnrichmentResult(source=self.source_name())
 
-        projects = (
-            await session.execute(select(Project))
-        ).scalars().all()
+        projects = (await session.execute(select(Project))).scalars().all()
 
         if not projects:
             return result
@@ -36,9 +34,7 @@ class HackerNewsEnricher(BaseEnricher):
             for project in projects:
                 try:
                     # Search for project name on HN
-                    mentions, points = await self._search_hn(
-                        client, project.name, ninety_days_ago
-                    )
+                    mentions, points = await self._search_hn(client, project.name, ninety_days_ago)
 
                     if mentions == 0:
                         result.records_skipped += 1

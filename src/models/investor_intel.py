@@ -52,6 +52,4 @@ class InvestorIntel(Base, UUIDMixin, TimestampMixin):
     # When the intel was observed (not when it was submitted)
     observed_at: Mapped[date | None] = mapped_column(Date)
 
-    contributor: Mapped["Contributor"] = relationship(
-        back_populates="intel_submissions"
-    )
+    contributor: Mapped["Contributor"] = relationship(back_populates="intel_submissions")

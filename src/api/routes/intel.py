@@ -3,11 +3,10 @@
 import hashlib
 import logging
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import APIKeyHeader
-from typing import Literal
-
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -115,7 +114,10 @@ async def submit_intel(
 
     logger.info(
         "Intel submitted by %s for %s (type=%s, status=%s)",
-        contributor.name, investor_slug, body.intel_type, status,
+        contributor.name,
+        investor_slug,
+        body.intel_type,
+        status,
     )
 
     return IntelResponse(

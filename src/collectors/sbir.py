@@ -116,9 +116,7 @@ class SBIRCollector(BaseCollector):
                 if len(str(date_str)) == 4:  # Year only
                     award_date = date(int(date_str), 1, 1)
                 else:
-                    award_date = datetime.fromisoformat(
-                        str(date_str).replace("Z", "+00:00")
-                    ).date()
+                    award_date = datetime.fromisoformat(str(date_str).replace("Z", "+00:00")).date()
             except Exception:
                 pass
 

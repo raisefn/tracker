@@ -175,9 +175,7 @@ class AngelListInvestorEnricher(BaseEnricher):
 
         return resp.text
 
-    async def _search_wellfound(
-        self, client: httpx.AsyncClient, investor_name: str
-    ) -> str | None:
+    async def _search_wellfound(self, client: httpx.AsyncClient, investor_name: str) -> str | None:
         """Search DuckDuckGo for the investor's Wellfound profile URL."""
         query = f'site:wellfound.com "{investor_name}"'
         try:
@@ -291,9 +289,7 @@ class AngelListInvestorEnricher(BaseEnricher):
     def _extract_location(self, soup: BeautifulSoup, html: str) -> str | None:
         """Extract location from profile page."""
         # JSON-LD structured data
-        location_match = re.search(
-            r'"address":\s*\{[^}]*"addressLocality":\s*"([^"]+)"', html
-        )
+        location_match = re.search(r'"address":\s*\{[^}]*"addressLocality":\s*"([^"]+)"', html)
         if location_match:
             return location_match.group(1).strip()
 
@@ -338,18 +334,14 @@ class AngelListInvestorEnricher(BaseEnricher):
         # Look for Twitter links
         for link in soup.find_all("a", href=True):
             href = link["href"]
-            twitter_match = re.search(
-                r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)/?$", href
-            )
+            twitter_match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)/?$", href)
             if twitter_match:
                 handle = twitter_match.group(1)
                 if handle.lower() not in ("share", "intent", "home", "search"):
                     return f"@{handle}"
 
         # Regex fallback in page content
-        match = re.search(
-            r'(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})', html
-        )
+        match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})", html)
         if match:
             handle = match.group(1)
             if handle.lower() not in ("share", "intent", "home", "search"):

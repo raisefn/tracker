@@ -56,8 +56,7 @@ class OpenVCCollector(BaseCollector):
             except httpx.HTTPStatusError as e:
                 if e.response.status_code in (404, 403, 401):
                     logger.warning(
-                        f"OpenVC API not available"
-                        f" (HTTP {e.response.status_code}), skipping"
+                        f"OpenVC API not available (HTTP {e.response.status_code}), skipping"
                     )
                     break
                 raise
@@ -80,9 +79,7 @@ class OpenVCCollector(BaseCollector):
     def _parse_round(self, item: dict) -> RawRound | None:
         """Parse a single OpenVC round into RawRound."""
         company_name = (
-            item.get("company_name")
-            or item.get("startup_name")
-            or item.get("name", "")
+            item.get("company_name") or item.get("startup_name") or item.get("name", "")
         ).strip()
         if not company_name:
             return None
@@ -108,6 +105,7 @@ class OpenVCCollector(BaseCollector):
         if date_str:
             try:
                 from datetime import datetime
+
                 round_date = datetime.fromisoformat(date_str.replace("Z", "+00:00")).date()
             except Exception:
                 pass

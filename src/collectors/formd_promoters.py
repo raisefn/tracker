@@ -79,8 +79,7 @@ class FormDPromoterEnricher(BaseEnricher):
 
         # Filter to people appearing in MIN_APPEARANCES+ filings
         active_promoters = {
-            name: data for name, data in promoters.items()
-            if data["count"] >= MIN_APPEARANCES
+            name: data for name, data in promoters.items() if data["count"] >= MIN_APPEARANCES
         }
 
         logger.info(
@@ -110,12 +109,14 @@ class FormDPromoterEnricher(BaseEnricher):
 
     async def _build_promoter_index(self) -> dict[str, dict]:
         """Download Form D related persons data and build frequency index."""
-        promoters: dict[str, dict] = defaultdict(lambda: {
-            "count": 0,
-            "roles": set(),
-            "states": set(),
-            "companies": [],
-        })
+        promoters: dict[str, dict] = defaultdict(
+            lambda: {
+                "count": 0,
+                "roles": set(),
+                "states": set(),
+                "companies": [],
+            }
+        )
 
         quarters = _latest_quarters(4)  # Last 4 quarters
 
@@ -204,7 +205,8 @@ class FormDPromoterEnricher(BaseEnricher):
                     row.get(
                         "RELATEDPERSONSTATE",
                         row.get("RELATEDPERSONSTATEORCOUNTRY", ""),
-                    ) or ""
+                    )
+                    or ""
                 ).strip()
                 accession = (row.get("ACCESSIONNUMBER", "") or "").strip()
 

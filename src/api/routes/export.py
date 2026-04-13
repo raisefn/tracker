@@ -18,9 +18,18 @@ router = APIRouter(prefix="/export", tags=["export"])
 MAX_EXPORT_ROWS = 10_000
 
 CSV_COLUMNS = [
-    "date", "project_name", "round_type", "amount_usd", "valuation_usd",
-    "sector", "chains", "lead_investors", "all_investors",
-    "source_url", "source_type", "confidence",
+    "date",
+    "project_name",
+    "round_type",
+    "amount_usd",
+    "valuation_usd",
+    "sector",
+    "chains",
+    "lead_investors",
+    "all_investors",
+    "source_url",
+    "source_type",
+    "confidence",
 ]
 
 
@@ -76,26 +85,26 @@ async def export_rounds(
         buf.truncate(0)
 
         for rd in rounds:
-            leads = [
-                ri.investor.name for ri in rd.investor_participations if ri.is_lead
-            ]
+            leads = [ri.investor.name for ri in rd.investor_participations if ri.is_lead]
             all_inv = [ri.investor.name for ri in rd.investor_participations]
             chains_str = "|".join(rd.chains) if rd.chains else ""
 
-            writer.writerow([
-                rd.date.isoformat() if rd.date else "",
-                rd.project.name if rd.project else "",
-                rd.round_type or "",
-                rd.amount_usd or "",
-                rd.valuation_usd or "",
-                rd.sector or "",
-                chains_str,
-                "|".join(leads),
-                "|".join(all_inv),
-                rd.source_url or "",
-                rd.source_type or "",
-                rd.confidence,
-            ])
+            writer.writerow(
+                [
+                    rd.date.isoformat() if rd.date else "",
+                    rd.project.name if rd.project else "",
+                    rd.round_type or "",
+                    rd.amount_usd or "",
+                    rd.valuation_usd or "",
+                    rd.sector or "",
+                    chains_str,
+                    "|".join(leads),
+                    "|".join(all_inv),
+                    rd.source_url or "",
+                    rd.source_type or "",
+                    rd.confidence,
+                ]
+            )
             yield buf.getvalue()
             buf.seek(0)
             buf.truncate(0)

@@ -57,20 +57,55 @@ CHECK_SIZE_RE = re.compile(
 
 # Stage keywords
 STAGE_KEYWORDS = [
-    "pre-seed", "preseed", "seed", "series a", "series b", "series c",
-    "early stage", "early-stage", "growth stage", "growth-stage",
-    "late stage", "late-stage", "venture", "angel",
+    "pre-seed",
+    "preseed",
+    "seed",
+    "series a",
+    "series b",
+    "series c",
+    "early stage",
+    "early-stage",
+    "growth stage",
+    "growth-stage",
+    "late stage",
+    "late-stage",
+    "venture",
+    "angel",
 ]
 
 # Sector keywords
 SECTOR_KEYWORDS = [
-    "fintech", "healthtech", "health tech", "biotech", "edtech",
-    "climate", "cleantech", "clean tech", "saas", "enterprise",
-    "consumer", "marketplace", "crypto", "web3", "blockchain",
-    "defi", "ai", "artificial intelligence", "machine learning",
-    "robotics", "cybersecurity", "security", "infrastructure",
-    "developer tools", "dev tools", "deep tech", "hardware",
-    "gaming", "media", "commerce", "e-commerce",
+    "fintech",
+    "healthtech",
+    "health tech",
+    "biotech",
+    "edtech",
+    "climate",
+    "cleantech",
+    "clean tech",
+    "saas",
+    "enterprise",
+    "consumer",
+    "marketplace",
+    "crypto",
+    "web3",
+    "blockchain",
+    "defi",
+    "ai",
+    "artificial intelligence",
+    "machine learning",
+    "robotics",
+    "cybersecurity",
+    "security",
+    "infrastructure",
+    "developer tools",
+    "dev tools",
+    "deep tech",
+    "hardware",
+    "gaming",
+    "media",
+    "commerce",
+    "e-commerce",
 ]
 
 # Location patterns
@@ -94,9 +129,7 @@ def _same_domain(base_url: str, candidate_url: str) -> bool:
         return False
 
 
-def _discover_subpages(
-    base_url: str, soup: BeautifulSoup
-) -> dict[str, str | None]:
+def _discover_subpages(base_url: str, soup: BeautifulSoup) -> dict[str, str | None]:
     """Scan nav links for team, portfolio, and about pages."""
     found: dict[str, str | None] = {"team": None, "portfolio": None, "about": None}
 
@@ -120,15 +153,28 @@ def _discover_subpages(
 
         # Match by link text as fallback
         if not found["team"] and link_text in (
-            "team", "people", "our team", "who we are", "partners", "leadership",
+            "team",
+            "people",
+            "our team",
+            "who we are",
+            "partners",
+            "leadership",
         ):
             found["team"] = full_url
         elif not found["portfolio"] and link_text in (
-            "portfolio", "companies", "investments", "our portfolio",
+            "portfolio",
+            "companies",
+            "investments",
+            "our portfolio",
         ):
             found["portfolio"] = full_url
         elif not found["about"] and link_text in (
-            "about", "about us", "our story", "thesis", "approach", "focus",
+            "about",
+            "about us",
+            "our story",
+            "thesis",
+            "approach",
+            "focus",
         ):
             found["about"] = full_url
 
@@ -147,9 +193,10 @@ def _extract_team_members(soup: BeautifulSoup) -> list[dict[str, str]]:
     # Strategy 1: Look for common team card patterns
     # Many VC sites use div/article elements with h2/h3 for name, p/span for title
     for container_tag in ("article", "div", "li", "section"):
-        cards = soup.find_all(container_tag, class_=re.compile(
-            r"(?:team|member|person|partner|staff|people|bio)", re.IGNORECASE
-        ))
+        cards = soup.find_all(
+            container_tag,
+            class_=re.compile(r"(?:team|member|person|partner|staff|people|bio)", re.IGNORECASE),
+        )
         for card in cards:
             member = _parse_member_card(card)
             if member and member["name"] not in seen_names:
@@ -166,8 +213,16 @@ def _extract_team_members(soup: BeautifulSoup) -> list[dict[str, str]]:
                     continue
                 # Skip navigation headings
                 if name.lower() in (
-                    "team", "our team", "people", "partners", "leadership",
-                    "portfolio", "about", "contact", "news", "blog",
+                    "team",
+                    "our team",
+                    "people",
+                    "partners",
+                    "leadership",
+                    "portfolio",
+                    "about",
+                    "contact",
+                    "news",
+                    "blog",
                 ):
                     continue
                 # Looks like a person name: 2-4 words, capitalized
@@ -175,8 +230,7 @@ def _extract_team_members(soup: BeautifulSoup) -> list[dict[str, str]]:
                 if len(words) < 2 or len(words) > 5:
                     continue
                 if not all(
-                    w[0].isupper()
-                    or w.lower() in ("de", "van", "von", "la", "el", "al")
+                    w[0].isupper() or w.lower() in ("de", "van", "von", "la", "el", "al")
                     for w in words
                 ):
                     continue
@@ -194,11 +248,13 @@ def _extract_team_members(soup: BeautifulSoup) -> list[dict[str, str]]:
 
                 if name not in seen_names:
                     seen_names.add(name)
-                    members.append({
-                        "name": name,
-                        "title": title,
-                        "bio": bio,
-                    })
+                    members.append(
+                        {
+                            "name": name,
+                            "title": title,
+                            "bio": bio,
+                        }
+                    )
 
     # Cap at 50 members to avoid bloating JSON
     return members[:50]
@@ -251,9 +307,10 @@ def _extract_portfolio_companies(soup: BeautifulSoup) -> list[str]:
 
     # Strategy 1: Look for portfolio card containers
     for container_tag in ("article", "div", "li", "a"):
-        cards = soup.find_all(container_tag, class_=re.compile(
-            r"(?:portfolio|company|investment|startup)", re.IGNORECASE
-        ))
+        cards = soup.find_all(
+            container_tag,
+            class_=re.compile(r"(?:portfolio|company|investment|startup)", re.IGNORECASE),
+        )
         for card in cards:
             name = _extract_company_name(card)
             if name and name.lower() not in seen:
@@ -271,8 +328,14 @@ def _extract_portfolio_companies(soup: BeautifulSoup) -> list[str]:
                     if name and 2 <= len(name) <= 80 and name.lower() not in seen:
                         # Skip navigation-style links
                         if name.lower() in (
-                            "learn more", "read more", "view all", "see all",
-                            "back", "next", "previous", "home",
+                            "learn more",
+                            "read more",
+                            "view all",
+                            "see all",
+                            "back",
+                            "next",
+                            "previous",
+                            "home",
                         ):
                             continue
                         seen.add(name.lower())
@@ -375,9 +438,9 @@ def _extract_location_from_page(soup: BeautifulSoup) -> str | None:
                 return loc
 
     # Check contact sections
-    for section in soup.find_all(["section", "div"], class_=re.compile(
-        r"(?:contact|address|location|footer)", re.IGNORECASE
-    )):
+    for section in soup.find_all(
+        ["section", "div"], class_=re.compile(r"(?:contact|address|location|footer)", re.IGNORECASE)
+    ):
         text = section.get_text(" ", strip=True)
         match = LOCATION_RE.search(text)
         if match:
@@ -396,9 +459,7 @@ def _extract_location_from_page(soup: BeautifulSoup) -> str | None:
     return None
 
 
-async def _fetch_page(
-    client: httpx.AsyncClient, url: str
-) -> BeautifulSoup | None:
+async def _fetch_page(client: httpx.AsyncClient, url: str) -> BeautifulSoup | None:
     """Fetch a page and return parsed BeautifulSoup, or None on failure."""
     try:
         resp = await client.get(url)
@@ -451,10 +512,7 @@ class VCWebsiteEnricher(BaseEnricher):
                     ~cast(Investor.source_freshness, String).contains(SOURCE_KEY),
                 ),
                 # VC-type investors only
-                (
-                    Investor.type.in_(("vc", None))
-                    | Investor.investor_category.ilike("%vc%")
-                ),
+                (Investor.type.in_(("vc", None)) | Investor.investor_category.ilike("%vc%")),
             )
             .order_by(func.coalesce(participation_count.c.deal_count, 0).desc())
             .limit(BATCH_SIZE)
@@ -483,9 +541,7 @@ class VCWebsiteEnricher(BaseEnricher):
         ) as client:
             for investor in investors:
                 try:
-                    updated = await self._scrape_investor(
-                        client, investor, project_slugs
-                    )
+                    updated = await self._scrape_investor(client, investor, project_slugs)
                     stamp_freshness(investor, SOURCE_KEY)
                     if updated:
                         investor.last_enriched_at = datetime.now(timezone.utc)
@@ -572,9 +628,7 @@ class VCWebsiteEnricher(BaseEnricher):
         await asyncio.sleep(REQUEST_DELAY)
 
         # Step 5: Scrape about/thesis page
-        thesis_data = await self._scrape_thesis(
-            client, subpages.get("about"), homepage_soup
-        )
+        thesis_data = await self._scrape_thesis(client, subpages.get("about"), homepage_soup)
         if thesis_data:
             freshness = investor.source_freshness or {}
             if thesis_data.get("check_size"):

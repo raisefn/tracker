@@ -52,8 +52,11 @@ async def search(
         else:
             stmt = (
                 select(
-                    Project.id, Project.name, Project.slug,
-                    Project.sector, literal(1.0).label("score"),
+                    Project.id,
+                    Project.name,
+                    Project.slug,
+                    Project.sector,
+                    literal(1.0).label("score"),
                 )
                 .where(Project.name.ilike(f"%{q}%"))
                 .order_by(Project.name)
@@ -62,14 +65,16 @@ async def search(
 
         rows = (await db.execute(stmt)).all()
         for row in rows:
-            results.append(SearchResultOut(
-                entity_type="project",
-                id=row.id,
-                name=row.name,
-                slug=row.slug,
-                score=round(float(row.score), 3),
-                extra={"sector": row.sector} if row.sector else {},
-            ))
+            results.append(
+                SearchResultOut(
+                    entity_type="project",
+                    id=row.id,
+                    name=row.name,
+                    slug=row.slug,
+                    score=round(float(row.score), 3),
+                    extra={"sector": row.sector} if row.sector else {},
+                )
+            )
 
     if type in ("all", "investors"):
         if use_trgm:
@@ -83,8 +88,11 @@ async def search(
         else:
             stmt = (
                 select(
-                    Investor.id, Investor.name, Investor.slug,
-                    Investor.type, literal(1.0).label("score"),
+                    Investor.id,
+                    Investor.name,
+                    Investor.slug,
+                    Investor.type,
+                    literal(1.0).label("score"),
                 )
                 .where(Investor.name.ilike(f"%{q}%"))
                 .order_by(Investor.name)
@@ -93,14 +101,16 @@ async def search(
 
         rows = (await db.execute(stmt)).all()
         for row in rows:
-            results.append(SearchResultOut(
-                entity_type="investor",
-                id=row.id,
-                name=row.name,
-                slug=row.slug,
-                score=round(float(row.score), 3),
-                extra={"type": row.type} if row.type else {},
-            ))
+            results.append(
+                SearchResultOut(
+                    entity_type="investor",
+                    id=row.id,
+                    name=row.name,
+                    slug=row.slug,
+                    score=round(float(row.score), 3),
+                    extra={"type": row.type} if row.type else {},
+                )
+            )
 
     # Sort combined results by score descending
     results.sort(key=lambda x: x.score, reverse=True)

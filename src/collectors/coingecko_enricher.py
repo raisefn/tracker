@@ -26,10 +26,10 @@ class CoinGeckoEnricher(BaseEnricher):
 
         # Only enrich projects that have a coingecko_id (set by DefiLlama enricher)
         projects = (
-            await session.execute(
-                select(Project).where(Project.coingecko_id.isnot(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.coingecko_id.isnot(None))))
+            .scalars()
+            .all()
+        )
 
         if not projects:
             logger.info("No projects with coingecko_id found. Run DefiLlama enricher first.")
@@ -86,6 +86,7 @@ class CoinGeckoEnricher(BaseEnricher):
                         if desc:
                             # Strip HTML tags from CoinGecko descriptions
                             import re
+
                             project.description = re.sub(r"<[^>]+>", "", desc)[:2000]
 
                     if not project.twitter:
@@ -108,8 +109,7 @@ class CoinGeckoEnricher(BaseEnricher):
 
                 except httpx.HTTPStatusError as e:
                     error_msg = (
-                        f"CoinGecko error for "
-                        f"{project.coingecko_id}: {e.response.status_code}"
+                        f"CoinGecko error for {project.coingecko_id}: {e.response.status_code}"
                     )
                     logger.warning(error_msg)
                     result.errors.append(error_msg)

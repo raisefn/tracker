@@ -62,9 +62,7 @@ class NIHReporterCollector(BaseCollector):
         logger.info(f"Total: {len(rounds)} SBIR/STTR awards from NIH")
         return rounds
 
-    async def _fetch_batch(
-        self, client: httpx.AsyncClient, offset: int
-    ) -> list[RawRound]:
+    async def _fetch_batch(self, client: httpx.AsyncClient, offset: int) -> list[RawRound]:
         """Fetch a batch of projects from NIH Reporter."""
         resp = await client.post(
             NIH_API,
@@ -166,7 +164,8 @@ class NIHReporterCollector(BaseCollector):
                 "state": org.get("org_state"),
                 "nih_institute": (
                     project.get("agency_ic_fundings", [{}])[0].get("name")
-                    if project.get("agency_ic_fundings") else None
+                    if project.get("agency_ic_fundings")
+                    else None
                 ),
             },
         )

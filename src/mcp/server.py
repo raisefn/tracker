@@ -11,11 +11,14 @@ from sqlalchemy.orm import selectinload
 from src.config import settings
 from src.models import Investor, Project, Round, RoundInvestor
 
-mcp = FastMCP("raisefn-tracker", instructions=(
-    "Crypto & startup fundraising intelligence. "
-    "Search rounds, investors, and projects. "
-    "Data sourced from DefiLlama, CryptoRank, SEC EDGAR, news, and more."
-))
+mcp = FastMCP(
+    "raisefn-tracker",
+    instructions=(
+        "Crypto & startup fundraising intelligence. "
+        "Search rounds, investors, and projects. "
+        "Data sourced from DefiLlama, CryptoRank, SEC EDGAR, news, and more."
+    ),
+)
 
 _engine = None
 
@@ -68,18 +71,21 @@ async def search_rounds(
         result = await session.execute(stmt)
         rounds = result.scalars().all()
 
-        return json.dumps([
-            {
-                "project": r.project.name,
-                "round_type": r.round_type,
-                "amount_usd": r.amount_usd,
-                "date": str(r.date),
-                "sector": r.sector,
-                "source_type": r.source_type,
-                "confidence": r.confidence,
-            }
-            for r in rounds
-        ], indent=2)
+        return json.dumps(
+            [
+                {
+                    "project": r.project.name,
+                    "round_type": r.round_type,
+                    "amount_usd": r.amount_usd,
+                    "date": str(r.date),
+                    "sector": r.sector,
+                    "source_type": r.source_type,
+                    "confidence": r.confidence,
+                }
+                for r in rounds
+            ],
+            indent=2,
+        )
     finally:
         await session.close()
 
@@ -89,9 +95,7 @@ async def get_project(slug: str) -> str:
     """Get detailed info about a project by its slug (e.g. 'uniswap', 'aave')."""
     session = await _session()
     try:
-        result = await session.execute(
-            select(Project).where(Project.slug == slug)
-        )
+        result = await session.execute(select(Project).where(Project.slug == slug))
         project = result.scalar_one_or_none()
         if not project:
             return json.dumps({"error": f"Project '{slug}' not found"})
@@ -105,26 +109,29 @@ async def get_project(slug: str) -> str:
         )
         rounds = rounds_result.scalars().all()
 
-        return json.dumps({
-            "name": project.name,
-            "slug": project.slug,
-            "website": project.website,
-            "sector": project.sector,
-            "chains": project.chains,
-            "description": project.description,
-            "github_stars": project.github_stars,
-            "twitter_followers": project.twitter_followers,
-            "tvl": project.tvl,
-            "rounds": [
-                {
-                    "round_type": r.round_type,
-                    "amount_usd": r.amount_usd,
-                    "date": str(r.date),
-                    "source_type": r.source_type,
-                }
-                for r in rounds
-            ],
-        }, indent=2)
+        return json.dumps(
+            {
+                "name": project.name,
+                "slug": project.slug,
+                "website": project.website,
+                "sector": project.sector,
+                "chains": project.chains,
+                "description": project.description,
+                "github_stars": project.github_stars,
+                "twitter_followers": project.twitter_followers,
+                "tvl": project.tvl,
+                "rounds": [
+                    {
+                        "round_type": r.round_type,
+                        "amount_usd": r.amount_usd,
+                        "date": str(r.date),
+                        "source_type": r.source_type,
+                    }
+                    for r in rounds
+                ],
+            },
+            indent=2,
+        )
     finally:
         await session.close()
 
@@ -137,14 +144,16 @@ async def search_investors(
     """Search investors by name. Returns investor profiles with round counts."""
     session = await _session()
     try:
-        stmt = select(
-            Investor,
-            func.count(RoundInvestor.round_id).label("round_count"),
-        ).outerjoin(
-            RoundInvestor, RoundInvestor.investor_id == Investor.id
-        ).group_by(Investor.id).order_by(
-            func.count(RoundInvestor.round_id).desc()
-        ).limit(limit)
+        stmt = (
+            select(
+                Investor,
+                func.count(RoundInvestor.round_id).label("round_count"),
+            )
+            .outerjoin(RoundInvestor, RoundInvestor.investor_id == Investor.id)
+            .group_by(Investor.id)
+            .order_by(func.count(RoundInvestor.round_id).desc())
+            .limit(limit)
+        )
 
         if query:
             stmt = stmt.where(Investor.name.ilike(f"%{query}%"))
@@ -152,16 +161,19 @@ async def search_investors(
         result = await session.execute(stmt)
         rows = result.all()
 
-        return json.dumps([
-            {
-                "name": inv.name,
-                "slug": inv.slug,
-                "type": inv.type,
-                "hq_location": inv.hq_location,
-                "round_count": count,
-            }
-            for inv, count in rows
-        ], indent=2)
+        return json.dumps(
+            [
+                {
+                    "name": inv.name,
+                    "slug": inv.slug,
+                    "type": inv.type,
+                    "hq_location": inv.hq_location,
+                    "round_count": count,
+                }
+                for inv, count in rows
+            ],
+            indent=2,
+        )
     finally:
         await session.close()
 
@@ -187,12 +199,15 @@ async def get_stats(period: str = "90d") -> str:
         )
         row = result.one()
 
-        return json.dumps({
-            "period": period,
-            "total_rounds": row.total_rounds,
-            "total_capital": row.total_capital,
-            "avg_round_size": int(row.avg_round_size) if row.avg_round_size else None,
-        }, indent=2)
+        return json.dumps(
+            {
+                "period": period,
+                "total_rounds": row.total_rounds,
+                "total_capital": row.total_capital,
+                "avg_round_size": int(row.avg_round_size) if row.avg_round_size else None,
+            },
+            indent=2,
+        )
     finally:
         await session.close()
 
@@ -214,14 +229,17 @@ async def search_projects(
         result = await session.execute(stmt)
         rows = result.all()
 
-        return json.dumps([
-            {
-                "name": r.name,
-                "slug": r.slug,
-                "sector": r.sector,
-                "website": r.website,
-            }
-            for r in rows
-        ], indent=2)
+        return json.dumps(
+            [
+                {
+                    "name": r.name,
+                    "slug": r.slug,
+                    "sector": r.sector,
+                    "website": r.website,
+                }
+                for r in rows
+            ],
+            indent=2,
+        )
     finally:
         await session.close()

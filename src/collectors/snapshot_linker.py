@@ -80,10 +80,10 @@ class SnapshotLinker(BaseEnricher):
 
         # Get projects without snapshot_space
         projects = (
-            await session.execute(
-                select(Project).where(Project.snapshot_space.is_(None))
-            )
-        ).scalars().all()
+            (await session.execute(select(Project).where(Project.snapshot_space.is_(None))))
+            .scalars()
+            .all()
+        )
 
         logger.info(f"Projects without snapshot_space: {len(projects)}")
 
@@ -123,7 +123,7 @@ class SnapshotLinker(BaseEnricher):
         # 3. Try with common suffixes stripped
         for suffix in [" protocol", " finance", " network", " dao", " labs", " io"]:
             if name_lower.endswith(suffix):
-                base = name_lower[:-len(suffix)].strip()
+                base = name_lower[: -len(suffix)].strip()
                 if base:
                     space = name_map.get(base)
                     if space:

@@ -28,17 +28,44 @@ TWITTER_RE = re.compile(
 )
 
 # Twitter handles to ignore (common non-project accounts)
-TWITTER_BLOCKLIST = frozenset({
-    "intent", "share", "home", "search", "explore", "settings",
-    "i", "hashtag", "login", "signup",
-})
+TWITTER_BLOCKLIST = frozenset(
+    {
+        "intent",
+        "share",
+        "home",
+        "search",
+        "explore",
+        "settings",
+        "i",
+        "hashtag",
+        "login",
+        "signup",
+    }
+)
 
 # GitHub orgs to ignore (common non-project orgs)
-GITHUB_BLOCKLIST = frozenset({
-    "github", "microsoft", "google", "facebook", "meta", "apple",
-    "twitter", "vercel", "netlify", "heroku", "aws", "azure",
-    "topics", "features", "pricing", "about", "sponsors", "orgs",
-})
+GITHUB_BLOCKLIST = frozenset(
+    {
+        "github",
+        "microsoft",
+        "google",
+        "facebook",
+        "meta",
+        "apple",
+        "twitter",
+        "vercel",
+        "netlify",
+        "heroku",
+        "aws",
+        "azure",
+        "topics",
+        "features",
+        "pricing",
+        "about",
+        "sponsors",
+        "orgs",
+    }
+)
 
 # Max projects per run to avoid extremely long runs
 BATCH_SIZE = 1000
@@ -53,18 +80,22 @@ class WebsiteLinker(BaseEnricher):
 
         # Find projects with website but missing github OR twitter
         projects = (
-            await session.execute(
-                select(Project)
-                .where(
-                    Project.website.isnot(None),
-                    or_(
-                        Project.github.is_(None),
-                        Project.twitter.is_(None),
-                    ),
+            (
+                await session.execute(
+                    select(Project)
+                    .where(
+                        Project.website.isnot(None),
+                        or_(
+                            Project.github.is_(None),
+                            Project.twitter.is_(None),
+                        ),
+                    )
+                    .limit(BATCH_SIZE)
                 )
-                .limit(BATCH_SIZE)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         if not projects:
             logger.info("No projects need website link discovery")

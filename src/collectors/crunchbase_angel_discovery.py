@@ -63,7 +63,6 @@ ARTICLE_QUERIES = [
     '"super angels" list',
     '"angel investor" list "check size"',
     '"angel investor directory"',
-
     # Forbes / publications
     'forbes "angel investors" list',
     'techcrunch "angel investors" list',
@@ -71,7 +70,6 @@ ARTICLE_QUERIES = [
     'inc.com "angel investors"',
     'entrepreneur.com "angel investors"',
     'fortune "angel investors"',
-
     # Sector-specific lists
     '"angel investors" fintech list',
     '"angel investors" "artificial intelligence" list',
@@ -92,7 +90,6 @@ ARTICLE_QUERIES = [
     '"angel investors" gaming list',
     '"angel investors" food tech list',
     '"angel investors" proptech list',
-
     # Location-specific lists
     '"angel investors" "San Francisco" list',
     '"angel investors" "New York" list',
@@ -111,7 +108,6 @@ ARTICLE_QUERIES = [
     '"angel investors" Austin list',
     '"angel investors" Boston list',
     '"angel investors" Seattle list',
-
     # Specific curated sources
     '"angel investor" "invested in" "portfolio"',
     '"angel investor" "$25K" OR "$50K" OR "$100K"',
@@ -195,9 +191,7 @@ class PublishedListAngelDiscovery(BaseEnricher):
                         seen_names.add(name)
 
                         try:
-                            created = await self._create_investor(
-                                session, person, created_slugs
-                            )
+                            created = await self._create_investor(session, person, created_slugs)
                             if created:
                                 new_count += 1
                                 result.records_updated += 1
@@ -208,8 +202,7 @@ class PublishedListAngelDiscovery(BaseEnricher):
 
                     if new_count > 0:
                         logger.info(
-                            f"[{SOURCE_KEY}] '{url[:80]}' → "
-                            f"{len(people)} people, {new_count} new"
+                            f"[{SOURCE_KEY}] '{url[:80]}' → {len(people)} people, {new_count} new"
                         )
 
                 except Exception as e:
@@ -225,9 +218,7 @@ class PublishedListAngelDiscovery(BaseEnricher):
         )
         return result
 
-    async def _search_ddg_for_articles(
-        self, client: httpx.AsyncClient, query: str
-    ) -> list[str]:
+    async def _search_ddg_for_articles(self, client: httpx.AsyncClient, query: str) -> list[str]:
         """Search DDG and return article URLs (not investor profile URLs)."""
         resp = await client.get(
             "https://html.duckduckgo.com/html/",
@@ -254,9 +245,13 @@ class PublishedListAngelDiscovery(BaseEnricher):
 
             # Skip social media profiles — we want articles
             skip_domains = [
-                "linkedin.com/in/", "twitter.com/", "x.com/",
-                "facebook.com/", "instagram.com/",
-                "crunchbase.com/person/", "wellfound.com/people/",
+                "linkedin.com/in/",
+                "twitter.com/",
+                "x.com/",
+                "facebook.com/",
+                "instagram.com/",
+                "crunchbase.com/person/",
+                "wellfound.com/people/",
             ]
             if any(d in actual_url for d in skip_domains):
                 continue
@@ -267,9 +262,7 @@ class PublishedListAngelDiscovery(BaseEnricher):
 
         return urls
 
-    async def _scrape_article(
-        self, client: httpx.AsyncClient, url: str
-    ) -> list[dict]:
+    async def _scrape_article(self, client: httpx.AsyncClient, url: str) -> list[dict]:
         """Scrape an article page for angel investor names and descriptions."""
         try:
             resp = await client.get(url)
@@ -332,10 +325,12 @@ class PublishedListAngelDiscovery(BaseEnricher):
                 if self._is_person_name(name_candidate):
                     desc = text.replace(name_candidate, "", 1).strip()
                     desc = re.sub(r"^[\s:\-–—]+", "", desc).strip()
-                    people.append({
-                        "name": name_candidate,
-                        "description": desc[:500] if desc else None,
-                    })
+                    people.append(
+                        {
+                            "name": name_candidate,
+                            "description": desc[:500] if desc else None,
+                        }
+                    )
                     continue
 
             # Try to extract "Name — description" or "Name: description" pattern
@@ -346,10 +341,12 @@ class PublishedListAngelDiscovery(BaseEnricher):
             if match:
                 name_candidate = match.group(1).strip()
                 if self._is_person_name(name_candidate):
-                    people.append({
-                        "name": name_candidate,
-                        "description": match.group(2).strip()[:500],
-                    })
+                    people.append(
+                        {
+                            "name": name_candidate,
+                            "description": match.group(2).strip()[:500],
+                        }
+                    )
 
         return people
 
@@ -372,10 +369,12 @@ class PublishedListAngelDiscovery(BaseEnricher):
             if next_el and next_el.name == "p":
                 desc = next_el.get_text(strip=True)[:500]
 
-            people.append({
-                "name": text,
-                "description": desc,
-            })
+            people.append(
+                {
+                    "name": text,
+                    "description": desc,
+                }
+            )
 
         return people
 
@@ -394,10 +393,12 @@ class PublishedListAngelDiscovery(BaseEnricher):
                     full_text = p.get_text(strip=True)
                     desc = full_text.replace(name_candidate, "", 1).strip()
                     desc = re.sub(r"^[\s:\-–—]+", "", desc).strip()
-                    people.append({
-                        "name": name_candidate,
-                        "description": desc[:500] if desc else None,
-                    })
+                    people.append(
+                        {
+                            "name": name_candidate,
+                            "description": desc[:500] if desc else None,
+                        }
+                    )
 
         return people
 
@@ -419,10 +420,12 @@ class PublishedListAngelDiscovery(BaseEnricher):
                     full_text = parent.get_text(strip=True)
                     desc = full_text.replace(text, "", 1).strip()
                     desc = re.sub(r"^[\s:\-–—|]+", "", desc).strip()
-                    people.append({
-                        "name": text,
-                        "description": desc[:500] if desc else None,
-                    })
+                    people.append(
+                        {
+                            "name": text,
+                            "description": desc[:500] if desc else None,
+                        }
+                    )
 
         # Also check table rows
         for row in article.select("tr"):
@@ -431,10 +434,12 @@ class PublishedListAngelDiscovery(BaseEnricher):
                 first_cell = cells[0].get_text(strip=True)
                 if self._is_person_name(first_cell):
                     desc = " | ".join(c.get_text(strip=True) for c in cells[1:])
-                    people.append({
-                        "name": first_cell,
-                        "description": desc[:500] if desc else None,
-                    })
+                    people.append(
+                        {
+                            "name": first_cell,
+                            "description": desc[:500] if desc else None,
+                        }
+                    )
 
         return people
 
@@ -457,17 +462,69 @@ class PublishedListAngelDiscovery(BaseEnricher):
 
         # No common non-name words
         non_names = {
-            "the", "top", "best", "most", "how", "what", "why", "when",
-            "angel", "investor", "investors", "investing", "investment",
-            "venture", "capital", "fund", "funding", "about", "read",
-            "more", "learn", "see", "view", "click", "here", "share",
-            "related", "posts", "articles", "news", "home", "contact",
-            "sign", "login", "register", "subscribe", "newsletter",
-            "number", "total", "notable", "portfolio", "companies",
-            "exits", "investments", "overview", "summary", "table",
-            "contents", "key", "takeaways", "conclusion", "introduction",
-            "featured", "image", "source", "photo", "credit", "getty",
-            "shutterstock", "updated", "published", "written", "author",
+            "the",
+            "top",
+            "best",
+            "most",
+            "how",
+            "what",
+            "why",
+            "when",
+            "angel",
+            "investor",
+            "investors",
+            "investing",
+            "investment",
+            "venture",
+            "capital",
+            "fund",
+            "funding",
+            "about",
+            "read",
+            "more",
+            "learn",
+            "see",
+            "view",
+            "click",
+            "here",
+            "share",
+            "related",
+            "posts",
+            "articles",
+            "news",
+            "home",
+            "contact",
+            "sign",
+            "login",
+            "register",
+            "subscribe",
+            "newsletter",
+            "number",
+            "total",
+            "notable",
+            "portfolio",
+            "companies",
+            "exits",
+            "investments",
+            "overview",
+            "summary",
+            "table",
+            "contents",
+            "key",
+            "takeaways",
+            "conclusion",
+            "introduction",
+            "featured",
+            "image",
+            "source",
+            "photo",
+            "credit",
+            "getty",
+            "shutterstock",
+            "updated",
+            "published",
+            "written",
+            "author",
         }
         lower_words = {w.lower() for w in words}
         if lower_words & non_names:
@@ -493,9 +550,7 @@ class PublishedListAngelDiscovery(BaseEnricher):
         if not slug or slug in created_slugs:
             return False
 
-        existing = await session.execute(
-            select(Investor.id).where(Investor.slug == slug)
-        )
+        existing = await session.execute(select(Investor.id).where(Investor.slug == slug))
         if existing.scalar_one_or_none() is not None:
             return False
 

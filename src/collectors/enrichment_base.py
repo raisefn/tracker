@@ -31,11 +31,29 @@ def stamp_freshness(project, source: str) -> None:
 
 # Common firm name suffixes to strip for fuzzy slug matching
 FIRM_SUFFIXES = [
-    "llc", "lp", "inc", "corp", "ltd", "co", "group",
-    "management", "advisory", "advisors", "advisers",
-    "partners", "capital", "ventures", "fund", "holdings",
-    "investments", "investment", "trust", "foundation",
-    "associates", "global", "international",
+    "llc",
+    "lp",
+    "inc",
+    "corp",
+    "ltd",
+    "co",
+    "group",
+    "management",
+    "advisory",
+    "advisors",
+    "advisers",
+    "partners",
+    "capital",
+    "ventures",
+    "fund",
+    "holdings",
+    "investments",
+    "investment",
+    "trust",
+    "foundation",
+    "associates",
+    "global",
+    "international",
 ]
 
 
@@ -49,9 +67,7 @@ def normalize_firm_slug(name: str) -> str:
     return make_slug(lower.strip())
 
 
-async def find_investor_match(
-    session: AsyncSession, name: str, **identifiers
-) -> "Investor | None":  # noqa: F821
+async def find_investor_match(session: AsyncSession, name: str, **identifiers) -> "Investor | None":  # noqa: F821
     """Try to match an investor by identifiers, exact slug, normalized slug, or prefix."""
     from src.models import Investor
     from src.pipeline.normalizer import make_slug
@@ -84,11 +100,13 @@ async def find_investor_match(
     # 4. Prefix match with length guard
     if norm_slug and len(norm_slug) >= 4:
         result = await session.execute(
-            select(Investor).where(
+            select(Investor)
+            .where(
                 Investor.slug.like(f"{norm_slug}%"),
                 func.length(Investor.slug) <= int(len(norm_slug) * 1.3),
                 func.length(Investor.slug) >= int(len(norm_slug) * 0.7),
-            ).limit(1)
+            )
+            .limit(1)
         )
         investor = result.scalar_one_or_none()
         if investor:

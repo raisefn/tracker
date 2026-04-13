@@ -117,8 +117,7 @@ def _classify_type(
         return current_type
 
     early_count = sum(
-        1 for rt in round_types
-        if (rt or "").lower().replace(" ", "_") in EARLY_STAGES
+        1 for rt in round_types if (rt or "").lower().replace(" ", "_") in EARLY_STAGES
     )
 
     # Angel signals: few deals, small checks, early stage only
@@ -233,8 +232,7 @@ class InvestorProfileAggregator(BaseEnricher):
                 break
 
             logger.info(
-                f"[{SOURCE_KEY}] Processing batch of {len(investors)} investors "
-                f"(offset={offset})"
+                f"[{SOURCE_KEY}] Processing batch of {len(investors)} investors (offset={offset})"
             )
 
             for investor in investors:
@@ -268,17 +266,13 @@ class InvestorProfileAggregator(BaseEnricher):
         )
         return result
 
-    async def _profile_investor(
-        self, session: AsyncSession, investor: Investor
-    ) -> bool:
+    async def _profile_investor(self, session: AsyncSession, investor: Investor) -> bool:
         """Build a profile for a single investor from their round participations."""
         # Query all round participations with round + project data
         stmt = (
             select(RoundInvestor)
             .where(RoundInvestor.investor_id == investor.id)
-            .options(
-                selectinload(RoundInvestor.round).selectinload(Round.project)
-            )
+            .options(selectinload(RoundInvestor.round).selectinload(Round.project))
         )
         participation_result = await session.execute(stmt)
         participations = participation_result.scalars().all()

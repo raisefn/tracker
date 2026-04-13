@@ -41,8 +41,10 @@ async def snapshot_metrics(session: AsyncSession, source: str) -> int:
 
     today = date.today()
     projects = (
-        await session.execute(select(Project).where(Project.last_enriched_at.isnot(None)))
-    ).scalars().all()
+        (await session.execute(select(Project).where(Project.last_enriched_at.isnot(None))))
+        .scalars()
+        .all()
+    )
 
     count = 0
     for project in projects:
@@ -52,9 +54,8 @@ async def snapshot_metrics(session: AsyncSession, source: str) -> int:
             .where(
                 ProjectMetricSnapshot.project_id == project.id,
                 ProjectMetricSnapshot.source == source,
-                ProjectMetricSnapshot.snapshotted_at >= datetime.combine(
-                    today, datetime.min.time(), tzinfo=timezone.utc
-                ),
+                ProjectMetricSnapshot.snapshotted_at
+                >= datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc),
             )
             .limit(1)
         )
@@ -69,11 +70,13 @@ async def snapshot_metrics(session: AsyncSession, source: str) -> int:
         if not metrics:
             continue
 
-        session.add(ProjectMetricSnapshot(
-            project_id=project.id,
-            source=source,
-            metrics=metrics,
-        ))
+        session.add(
+            ProjectMetricSnapshot(
+                project_id=project.id,
+                source=source,
+                metrics=metrics,
+            )
+        )
         count += 1
 
     return count

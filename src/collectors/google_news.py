@@ -127,9 +127,7 @@ class GoogleNewsFundingCollector(BaseCollector):
                             continue
                         seen_urls.add(link)
 
-                        raw_round = self._parse_article(
-                            title, description, link, pub_date
-                        )
+                        raw_round = self._parse_article(title, description, link, pub_date)
                         if raw_round:
                             rounds.append(raw_round)
                             query_count += 1

@@ -119,8 +119,15 @@ _BOUNDARY_PATTERN = re.compile(
 )
 
 FUNDING_KEYWORDS = [
-    "raises", "secures", "closes", "funding", "raised", "round",
-    "announces", "completes", "unveils",
+    "raises",
+    "secures",
+    "closes",
+    "funding",
+    "raised",
+    "round",
+    "announces",
+    "completes",
+    "unveils",
 ]
 
 # Max reasonable length for a company name
@@ -166,12 +173,49 @@ def clean_company_name(name: str) -> str:
 
 # Words that indicate a sentence fragment, not an investor name
 _NOISE_WORDS = {
-    "the", "a", "an", "its", "their", "his", "her", "this", "that", "these",
-    "those", "former", "current", "existing", "new", "other", "several",
-    "various", "multiple", "more", "others", "undisclosed", "unnamed",
-    "anonymous", "prominent", "notable", "major", "leading", "backed",
-    "according", "sources", "reportedly", "said", "also", "which", "where",
-    "who", "whom", "whose", "what", "when", "how", "about",
+    "the",
+    "a",
+    "an",
+    "its",
+    "their",
+    "his",
+    "her",
+    "this",
+    "that",
+    "these",
+    "those",
+    "former",
+    "current",
+    "existing",
+    "new",
+    "other",
+    "several",
+    "various",
+    "multiple",
+    "more",
+    "others",
+    "undisclosed",
+    "unnamed",
+    "anonymous",
+    "prominent",
+    "notable",
+    "major",
+    "leading",
+    "backed",
+    "according",
+    "sources",
+    "reportedly",
+    "said",
+    "also",
+    "which",
+    "where",
+    "who",
+    "whom",
+    "whose",
+    "what",
+    "when",
+    "how",
+    "about",
 }
 
 # HTML entities that indicate garbage extraction
@@ -203,15 +247,23 @@ def is_valid_investor_name(name: str) -> bool:
     words = name.split()
     if len(words) >= 4:
         half = len(words) // 2
-        if words[:half] == words[half:2 * half]:
+        if words[:half] == words[half : 2 * half]:
             return False
 
     # Reject SEC Form D entity types that aren't real investors
     lower = name.lower()
     _sec_junk = [
-        "depositor, llc", "depositor llc", "manager, llc", "manager llc",
-        "residential", "housing", "real estate", "property", "mortgage",
-        "trust company", "trustee",
+        "depositor, llc",
+        "depositor llc",
+        "manager, llc",
+        "manager llc",
+        "residential",
+        "housing",
+        "real estate",
+        "property",
+        "mortgage",
+        "trust company",
+        "trustee",
     ]
     if any(junk in lower for junk in _sec_junk):
         return False
@@ -224,10 +276,19 @@ def is_valid_investor_name(name: str) -> bool:
     # Reject if it contains too many lowercase words (sentence fragment)
     if len(words) > 2:
         lowercase_count = sum(
-            1 for w in words
+            1
+            for w in words
             if w[0].islower()
-            and w not in (
-                "a16z", "de", "von", "van", "del", "of", "and", "for",
+            and w
+            not in (
+                "a16z",
+                "de",
+                "von",
+                "van",
+                "del",
+                "of",
+                "and",
+                "for",
             )
         )
         if lowercase_count > len(words) * 0.6:
@@ -235,16 +296,31 @@ def is_valid_investor_name(name: str) -> bool:
 
     # Reject possessive descriptions like "GitHub's former CEO"
     title_words = [
-        "ceo", "cto", "founder", "president",
-        "director", "chief", "head", "vp",
+        "ceo",
+        "cto",
+        "founder",
+        "president",
+        "director",
+        "chief",
+        "head",
+        "vp",
     ]
     if "'s " in name and any(w in lower for w in title_words):
         return False
 
     # Reject if it looks like a sentence (contains verbs)
     sentence_verbs = [
-        "has ", "have ", "will ", "would ", "could ",
-        "should ", "is ", "are ", "was ", "were ", "been ",
+        "has ",
+        "have ",
+        "will ",
+        "would ",
+        "could ",
+        "should ",
+        "is ",
+        "are ",
+        "was ",
+        "were ",
+        "been ",
     ]
     if any(v in lower for v in sentence_verbs):
         return False
@@ -315,6 +391,7 @@ def extract_valuation(text: str) -> int | None:
 
 
 # --- Date parsing ---
+
 
 def parse_rss_date(date_str: str) -> date | None:
     """Parse RSS pubDate format."""
