@@ -46,10 +46,14 @@ SKIP_NAMES = {
 }
 
 # Previous company signal words in bios/snippets
+_FORMER = r"(?:formerly|previously|ex-|former)\s+(?:at\s+)?"
+_WORKED = r"(?:worked at|came from|left|departed|co-founded|founded)\s+"
+_ALUM = r"(?:alum(?:nus|na)?|graduate)\s+(?:of\s+)?"
+_CO = r"([A-Z][A-Za-z0-9 &.\-']+)"
 PREV_COMPANY_PATTERNS = [
-    re.compile(r"(?:formerly|previously|ex-|former)\s+(?:at\s+)?([A-Z][A-Za-z0-9 &.\-']+)", re.IGNORECASE),
-    re.compile(r"(?:worked at|came from|left|departed|co-founded|founded)\s+([A-Z][A-Za-z0-9 &.\-']+)", re.IGNORECASE),
-    re.compile(r"(?:alum(?:nus|na)?|graduate)\s+(?:of\s+)?([A-Z][A-Za-z0-9 &.\-']+)", re.IGNORECASE),
+    re.compile(_FORMER + _CO, re.IGNORECASE),
+    re.compile(_WORKED + _CO, re.IGNORECASE),
+    re.compile(_ALUM + _CO, re.IGNORECASE),
 ]
 
 # Role patterns
@@ -119,7 +123,7 @@ class FounderEnricher(BaseEnricher):
                     else:
                         stamp_freshness(founder, self.source_name())
                         result.records_skipped += 1
-                except _RateLimited:
+                except _RateLimitedError:
                     logger.warning(f"[{SOURCE_KEY}] Rate limited, stopping run")
                     result.errors.append("DDG rate limited, stopping early")
                     break
@@ -247,7 +251,8 @@ class FounderEnricher(BaseEnricher):
             clean_snippet = re.sub(r"<[^>]+>", "", snippet).strip()
 
             # Extract bio from first substantial snippet mentioning the person
-            if not bio and name.split()[0].lower() in clean_snippet.lower() and len(clean_snippet) > 50:
+            name_in_snippet = name.split()[0].lower() in clean_snippet.lower()
+            if not bio and name_in_snippet and len(clean_snippet) > 50:
                 bio = clean_snippet[:2000]
 
             # Extract Twitter handle
@@ -264,9 +269,17 @@ class FounderEnricher(BaseEnricher):
             for pattern in PREV_COMPANY_PATTERNS:
                 for match in pattern.finditer(clean_snippet):
                     company_name = match.group(1).strip().rstrip(".,;")
-                    if company_name and len(company_name) > 2 and company_name.lower() != company.lower():
-                        # Avoid duplicates
-                        if not any(p.get("name", "").lower() == company_name.lower() for p in prev_companies):
+                    is_valid = (
+                        company_name
+                        and len(company_name) > 2
+                        and company_name.lower() != company.lower()
+                    )
+                    if is_valid:
+                        already = any(
+                            p.get("name", "").lower() == company_name.lower()
+                            for p in prev_companies
+                        )
+                        if not already:
                             prev_companies.append({"name": company_name})
 
             # Extract roles mentioned with previous companies
@@ -284,7 +297,7 @@ class FounderEnricher(BaseEnricher):
     async def _ddg_search(self, client: httpx.AsyncClient, query: str) -> str | None:
         """Execute a DuckDuckGo HTML search and return raw HTML.
 
-        On 403/429, backs off 30s and retries once before raising _RateLimited.
+        On 403/429, backs off 30s and retries once before raising _RateLimitedError.
         """
         for attempt in range(2):
             try:
@@ -294,11 +307,11 @@ class FounderEnricher(BaseEnricher):
                         logger.debug(f"[{SOURCE_KEY}] DDG {resp.status_code}, backing off 30s")
                         await asyncio.sleep(30)
                         continue
-                    raise _RateLimited()
+                    raise _RateLimitedError()
                 if resp.status_code != 200:
                     return None
                 return resp.text
-            except _RateLimited:
+            except _RateLimitedError:
                 raise
             except Exception as e:
                 logger.debug(f"[{SOURCE_KEY}] DDG search error: {e}")
@@ -338,5 +351,5 @@ def _extract_ddg_results(html: str) -> list[tuple[str, str]]:
     return results
 
 
-class _RateLimited(Exception):
+class _RateLimitedError(Exception):
     """Raised when DDG returns 403/429."""
