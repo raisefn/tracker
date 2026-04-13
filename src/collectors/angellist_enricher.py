@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 import httpx
 from bs4 import BeautifulSoup
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.collectors.enrichment_base import BaseEnricher, EnrichmentResult, stamp_freshness
@@ -120,8 +120,10 @@ class AngelListInvestorEnricher(BaseEnricher):
             select(Investor)
             .outerjoin(early_count, Investor.id == early_count.c.investor_id)
             .where(
-                Investor.source_freshness.is_(None)
-                | ~Investor.source_freshness.has_key(SOURCE_KEY)  # noqa: W601
+                or_(
+                    Investor.source_freshness.is_(None),
+                    ~cast(Investor.source_freshness, String).contains(SOURCE_KEY),
+                )
             )
             .order_by(early_count.c.early_rounds.desc().nullslast())
             .limit(BATCH_SIZE)

@@ -14,7 +14,7 @@ from urllib.parse import unquote
 
 import httpx
 from bs4 import BeautifulSoup
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -278,8 +278,10 @@ class TwitterBioEnricher(BaseEnricher):
             .where(
                 Investor.twitter.isnot(None),
                 Investor.twitter != "",
-                Investor.source_freshness.is_(None)
-                | ~Investor.source_freshness.has_key(SOURCE_KEY),
+                or_(
+                    Investor.source_freshness.is_(None),
+                    ~cast(Investor.source_freshness, String).contains(SOURCE_KEY),
+                ),
             )
             .order_by(func.coalesce(participation_count.c.deal_count, 0).desc())
             .limit(ENRICH_BATCH_SIZE)
@@ -336,8 +338,10 @@ class TwitterBioEnricher(BaseEnricher):
             .outerjoin(participation_count, Investor.id == participation_count.c.investor_id)
             .where(
                 (Investor.twitter.is_(None) | (Investor.twitter == "")),
-                Investor.source_freshness.is_(None)
-                | ~Investor.source_freshness.has_key(f"{SOURCE_KEY}_discovery"),
+                or_(
+                    Investor.source_freshness.is_(None),
+                    ~cast(Investor.source_freshness, String).contains(f"{SOURCE_KEY}_discovery"),
+                ),
             )
             .order_by(func.coalesce(participation_count.c.deal_count, 0).desc())
             .limit(DISCOVERY_BATCH_SIZE)

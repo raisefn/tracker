@@ -19,7 +19,7 @@ import re
 from urllib.parse import unquote
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -153,8 +153,10 @@ class FounderEnricher(BaseEnricher):
             select(Founder)
             .outerjoin(round_count, Founder.project_id == round_count.c.project_id)
             .where(
-                Founder.source_freshness.is_(None)
-                | ~Founder.source_freshness.has_key(SOURCE_KEY)  # noqa: W601
+                or_(
+                    Founder.source_freshness.is_(None),
+                    ~cast(Founder.source_freshness, String).contains(SOURCE_KEY),
+                )
             )
             .order_by(func.coalesce(round_count.c.round_count, 0).desc())
             .limit(BATCH_SIZE)

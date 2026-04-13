@@ -15,7 +15,7 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -446,8 +446,10 @@ class VCWebsiteEnricher(BaseEnricher):
                 Investor.website.isnot(None),
                 Investor.website != "",
                 # Not yet enriched by this source
-                Investor.source_freshness.is_(None)
-                | ~Investor.source_freshness.has_key(SOURCE_KEY),
+                or_(
+                    Investor.source_freshness.is_(None),
+                    ~cast(Investor.source_freshness, String).contains(SOURCE_KEY),
+                ),
                 # VC-type investors only
                 (
                     Investor.type.in_(("vc", None))

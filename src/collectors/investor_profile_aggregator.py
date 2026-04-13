@@ -10,7 +10,7 @@ import logging
 from collections import Counter
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -217,8 +217,10 @@ class InvestorProfileAggregator(BaseEnricher):
                 select(Investor)
                 .where(
                     # source_freshness is NULL or doesn't contain our key
-                    Investor.source_freshness.is_(None)
-                    | ~Investor.source_freshness.has_key(SOURCE_KEY)
+                    or_(
+                        Investor.source_freshness.is_(None),
+                        ~cast(Investor.source_freshness, String).contains(SOURCE_KEY),
+                    )
                 )
                 .order_by(Investor.name)
                 .limit(BATCH_SIZE)

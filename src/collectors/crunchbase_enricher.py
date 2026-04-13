@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 import httpx
 from bs4 import BeautifulSoup
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -144,8 +144,10 @@ class CrunchbaseEnricher(BaseEnricher):
             select(Investor)
             .outerjoin(participation_count, Investor.id == participation_count.c.investor_id)
             .where(
-                Investor.source_freshness.is_(None)
-                | ~Investor.source_freshness.has_key(SOURCE_KEY)  # noqa: W601
+                or_(
+                    Investor.source_freshness.is_(None),
+                    ~cast(Investor.source_freshness, String).contains(SOURCE_KEY),
+                )
             )
             .order_by(func.coalesce(participation_count.c.deal_count, 0).desc())
             .limit(BATCH_SIZE)
