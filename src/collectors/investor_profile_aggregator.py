@@ -344,9 +344,7 @@ class InvestorProfileAggregator(BaseEnricher):
                 focus_sectors.append(sector)
         investor.focus_sectors = focus_sectors or None
 
-        stage_counts = Counter(
-            (rt or "").lower().replace(" ", "_") for rt in round_types if rt
-        )
+        stage_counts = Counter((rt or "").lower().replace(" ", "_") for rt in round_types if rt)
         # Any stage that is >= 20% of their deals
         focus_stages = []
         for stage, count in stage_counts.most_common():
