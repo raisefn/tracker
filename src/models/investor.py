@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -54,6 +54,10 @@ class Investor(Base, UUIDMixin, TimestampMixin):
     investor_category: Mapped[str | None] = mapped_column(String(100))
     source_freshness: Mapped[dict | None] = mapped_column(JSON)
     last_enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Derived focus from round participation history (computed by InvestorProfileAggregator)
+    focus_sectors: Mapped[list[str] | None] = mapped_column(ARRAY(String))
+    focus_stages: Mapped[list[str] | None] = mapped_column(ARRAY(String))
 
     round_participations: Mapped[list["RoundInvestor"]] = relationship(  # noqa: F821
         back_populates="investor"

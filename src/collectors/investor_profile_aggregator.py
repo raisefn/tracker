@@ -334,6 +334,26 @@ class InvestorProfileAggregator(BaseEnricher):
             avg_check=avg_check,
         )
 
+        # Derive focus_sectors and focus_stages from participation history
+        # These power the brain's investor matching for founders
+        sector_counts = Counter(s for s in sectors if s)
+        # Top 3 sectors by deal count, only if they represent >= 15% of deals
+        focus_sectors = []
+        for sector, count in sector_counts.most_common(3):
+            if num_deals > 0 and count / num_deals >= 0.15:
+                focus_sectors.append(sector)
+        investor.focus_sectors = focus_sectors or None
+
+        stage_counts = Counter(
+            (rt or "").lower().replace(" ", "_") for rt in round_types if rt
+        )
+        # Any stage that is >= 20% of their deals
+        focus_stages = []
+        for stage, count in stage_counts.most_common():
+            if num_deals > 0 and count / num_deals >= 0.20:
+                focus_stages.append(stage)
+        investor.focus_stages = focus_stages or None
+
         # Infer type (only if not already set by higher-confidence source)
         inferred_type = _classify_type(
             current_type=investor.type,
