@@ -17,6 +17,7 @@ from src.collectors.news_parser import (
     AMOUNT_PATTERN,
     FUNDING_KEYWORDS,
     RAISES_PATTERN,
+    classify_sector,
     clean_company_name,
     extract_investors,
     extract_round_type,
@@ -311,6 +312,7 @@ class RSSFundingCollector(BaseCollector):
 
         lead_investors, other_investors = extract_investors(combined)
         valuation = extract_valuation(combined)
+        sector = classify_sector(title, description, feed_name)
 
         # Try the "X raises $Y" pattern first
         match = RAISES_PATTERN.match(title)
@@ -327,6 +329,7 @@ class RSSFundingCollector(BaseCollector):
                     amount_usd=amount,
                     valuation_usd=valuation,
                     round_type=round_type,
+                    sector=sector,
                     lead_investors=lead_investors,
                     other_investors=other_investors,
                     source_url=link,
@@ -358,6 +361,7 @@ class RSSFundingCollector(BaseCollector):
                                 amount_usd=amount,
                                 valuation_usd=valuation,
                                 round_type=round_type,
+                                sector=sector,
                                 lead_investors=lead_investors,
                                 other_investors=other_investors,
                                 source_url=link,

@@ -17,6 +17,7 @@ from src.collectors.news_parser import (
     AMOUNT_PATTERN,
     FUNDING_KEYWORDS,
     RAISES_PATTERN,
+    classify_sector,
     clean_company_name,
     extract_investors,
     extract_round_type,
@@ -132,6 +133,7 @@ class HackerNewsFundingCollector(BaseCollector):
         combined = title
         lead_investors, other_investors = extract_investors(combined)
         valuation = extract_valuation(combined)
+        sector = classify_sector(title, "", "Hacker News")
 
         # Try standard raises pattern
         match = RAISES_PATTERN.match(title)
@@ -147,6 +149,7 @@ class HackerNewsFundingCollector(BaseCollector):
                     amount_usd=amount,
                     valuation_usd=valuation,
                     round_type=round_type,
+                    sector=sector,
                     lead_investors=lead_investors,
                     other_investors=other_investors,
                     source_url=url or story_url,
@@ -174,6 +177,7 @@ class HackerNewsFundingCollector(BaseCollector):
                     amount_usd=amount,
                     valuation_usd=valuation,
                     round_type=round_type,
+                    sector=sector,
                     lead_investors=lead_investors,
                     other_investors=other_investors,
                     source_url=url or story_url,
@@ -206,6 +210,7 @@ class HackerNewsFundingCollector(BaseCollector):
                                 amount_usd=amount,
                                 valuation_usd=valuation,
                                 round_type=round_type,
+                                sector=sector,
                                 lead_investors=lead_investors,
                                 other_investors=other_investors,
                                 source_url=url or story_url,

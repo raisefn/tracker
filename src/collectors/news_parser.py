@@ -390,6 +390,90 @@ def extract_valuation(text: str) -> int | None:
     return None
 
 
+# --- Sector classification ---
+
+# Feeds with a strong default sector — articles from these feeds
+# get this sector unless keyword classification overrides.
+FEED_DEFAULT_SECTORS = {
+    # Fintech-specific
+    "Finovate": "fintech",
+    "Finextra": "fintech",
+    "PYMNTS": "fintech",
+    "FinanceMagnates": "fintech",
+    "Finsmes": "fintech",
+    # Bio/health
+    "FierceBiotech": "biotech",
+    "MobiHealthNews": "healthtech",
+    # Climate
+    "CleanTechnica": "climate",
+    # Crypto
+    "The Block": "defi",
+    "CoinDesk": "defi",
+    "Decrypt": "defi",
+    "DL News": "defi",
+    "Blockworks": "defi",
+    "CoinDesk Business": "defi",
+}
+
+# Keyword → sector mapping. First match wins (ordered by specificity).
+# Applied to lowercased title + description.
+_SECTOR_KEYWORDS = [
+    ("fintech", ["fintech", "neobank", "challenger bank", "payments platform",
+                 "lending platform", "banking app", "credit card", "embedded finance",
+                 "remittance", "stablecoin payments", "buy now pay later", "bnpl",
+                 "wealth management", "robo-advisor", "trading platform",
+                 "insurance technology", "regtech", "open banking", "kyc",
+                 "anti-money laundering", "aml ", "cross-border payments"]),
+    ("healthtech", ["healthtech", "digital health", "telehealth", "telemedicine",
+                    "mental health platform", "patient platform", "ehr ",
+                    "medical record", "healthcare ai", "health platform",
+                    "wellness app", "fitness app", "wearable health"]),
+    ("biotech", ["biotech", "biotechnology", "drug discovery", "pharmaceutical",
+                 "therapeutic", "clinical trial", "gene therapy", "mrna",
+                 "molecular", "vaccine "]),
+    ("climate", ["cleantech", "clean energy", "renewable energy", "solar startup",
+                 "battery storage", "ev charging", "electric vehicle startup",
+                 "carbon capture", "climate tech", "decarbonization"]),
+    ("defi", ["defi", "decentralized finance", "blockchain", "crypto exchange",
+              "web3", "nft marketplace", "dao ", " dao", "smart contract",
+              "ethereum", "solana", "layer 2", "layer-2", "stablecoin"]),
+    ("ai", ["llm ", "large language model", "generative ai", "ai startup",
+            "ai-powered", "ai agent", "ai platform", "ai assistant",
+            "machine learning platform", "ml platform", "computer vision"]),
+    ("security", ["cybersecurity", "infosec", "zero trust", "threat detection",
+                  "endpoint security", "siem ", "soc ", "vulnerability"]),
+    ("enterprise", ["b2b saas", "enterprise software", "enterprise saas",
+                    "workflow automation", "productivity platform"]),
+    ("edtech", ["edtech", "online learning", "tutoring platform", "learning platform"]),
+    ("hardware", ["robotics", "drone startup", " iot "]),
+    ("logistics", ["logistics startup", "supply chain", "freight", "last mile"]),
+    ("foodtech", ["foodtech", "alternative protein", "plant-based", "food delivery"]),
+    ("proptech", ["proptech", "real estate platform", "real estate tech"]),
+    ("gaming", ["game studio", "gaming startup", "video game", "esports"]),
+    ("spacetech", ["space startup", "satellite startup", "rocket company"]),
+]
+
+
+def classify_sector(title: str, description: str, feed_name: str | None = None) -> str | None:
+    """Infer sector from article text and feed source.
+
+    Strategy:
+    1. Keyword match on title + description (highest confidence).
+    2. Fall back to feed default sector if applicable.
+    """
+    text = f"{title} {description}".lower()
+
+    for sector, keywords in _SECTOR_KEYWORDS:
+        for kw in keywords:
+            if kw in text:
+                return sector
+
+    if feed_name and feed_name in FEED_DEFAULT_SECTORS:
+        return FEED_DEFAULT_SECTORS[feed_name]
+
+    return None
+
+
 # --- Date parsing ---
 
 
