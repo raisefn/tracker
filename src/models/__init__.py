@@ -8,6 +8,7 @@ from src.models.intel_feedback import IntelFeedback
 from src.models.intel_request import IntelRequest
 from src.models.investor import Investor, InvestorAlias
 from src.models.investor_intel import InvestorIntel
+from src.models.investor_partner import InvestorPartner
 from src.models.project import Project
 from src.models.project_metric_snapshot import ProjectMetricSnapshot
 from src.models.round import Round
@@ -26,6 +27,7 @@ __all__ = [
     "Investor",
     "InvestorAlias",
     "InvestorIntel",
+    "InvestorPartner",
     "Project",
     "ProjectMetricSnapshot",
     "Round",

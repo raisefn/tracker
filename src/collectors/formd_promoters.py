@@ -41,10 +41,19 @@ MIN_APPEARANCES = 3
 
 
 def _latest_quarters(n: int = 4) -> list[str]:
-    """Get the latest N quarterly data set identifiers."""
+    """Get the latest N quarterly data set identifiers.
+
+    SEC publishes Form D data after quarter-end, so the current quarter
+    won't be available yet — start from the previous quarter.
+    """
     now = datetime.now()
     quarters = []
+    # Start at the PREVIOUS quarter, not the current one
     year, quarter = now.year, (now.month - 1) // 3 + 1
+    quarter -= 1
+    if quarter == 0:
+        quarter = 4
+        year -= 1
 
     for _ in range(n):
         quarters.append(f"{year}q{quarter}")
@@ -146,7 +155,8 @@ class FormDPromoterEnricher(BaseEnricher):
         promoters: dict,
     ) -> None:
         """Process a single quarterly Form D data set."""
-        url = f"{SEC_FORMD_BASE}/{quarter}_formd.zip"
+        # SEC URL pattern is `{quarter}_d.zip`, not `_formd.zip` (verified 2026-05-02)
+        url = f"{SEC_FORMD_BASE}/{quarter}_d.zip"
         resp = await client.get(url, follow_redirects=True)
         if resp.status_code != 200:
             logger.warning(f"Form D data set {quarter} not available: {resp.status_code}")
@@ -154,24 +164,28 @@ class FormDPromoterEnricher(BaseEnricher):
 
         zf = zipfile.ZipFile(io.BytesIO(resp.content))
 
-        # Find the RELATEDPERSONS file
+        # Find RELATEDPERSONS + ISSUERS files inside the zip.
+        # Schema verified 2026-05-02 against 2025q4_d.zip:
+        # - RELATEDPERSONS columns: ACCESSIONNUMBER, FIRSTNAME, LASTNAME,
+        #   RELATIONSHIP_1/2/3, STATEORCOUNTRY (no RELATEDPERSON* prefix)
+        # - Company names live in ISSUERS.tsv (ENTITYNAME), not FORMDSUBMISSION
         persons_file = None
-        submission_file = None
+        issuers_file = None
         for name in zf.namelist():
             lower = name.lower()
             if "relatedperson" in lower:
                 persons_file = name
-            elif "submission" in lower or "formdsubmission" in lower:
-                submission_file = name
+            elif "issuers" in lower:
+                issuers_file = name
 
         if not persons_file:
             logger.warning(f"No RELATEDPERSONS file in {quarter}")
             return
 
-        # Build accession → company name mapping from submissions
+        # Build accession → primary issuer/company-name mapping
         company_map: dict[str, str] = {}
-        if submission_file:
-            with zf.open(submission_file) as f:
+        if issuers_file:
+            with zf.open(issuers_file) as f:
                 text = io.TextIOWrapper(f, encoding="utf-8", errors="replace")
                 header = text.readline().strip().split("\t")
                 for line in text:
@@ -179,9 +193,11 @@ class FormDPromoterEnricher(BaseEnricher):
                     if len(parts) < len(header):
                         continue
                     row = dict(zip(header, parts))
-                    accession = row.get("ACCESSIONNUMBER", "").strip()
-                    company = row.get("ENTITYNAME", row.get("ISSUERNAME", "")).strip()
-                    if accession and company:
+                    accession = (row.get("ACCESSIONNUMBER") or "").strip()
+                    company = (row.get("ENTITYNAME") or "").strip()
+                    is_primary = (row.get("IS_PRIMARYISSUER_FLAG") or "").strip().upper() == "YES"
+                    # Prefer the primary issuer; only fall back if no primary seen
+                    if accession and company and (is_primary or accession not in company_map):
                         company_map[accession] = company
 
         # Process related persons
@@ -194,24 +210,23 @@ class FormDPromoterEnricher(BaseEnricher):
                     continue
                 row = dict(zip(header, parts))
 
-                first = (row.get("RELATEDPERSONFIRSTNAME", "") or "").strip()
-                last = (row.get("RELATEDPERSONLASTNAME", "") or "").strip()
-                if not last:
+                first = (row.get("FIRSTNAME") or "").strip()
+                last = (row.get("LASTNAME") or "").strip()
+                # SEC uses "N/A" as a sentinel for entity rows (LLCs etc.) — skip
+                if not last or first.upper() == "N/A" or last.upper() == "N/A":
                     continue
 
                 name = f"{first} {last}".strip() if first else last
-                role = (row.get("RELATEDPERSONRELATIONSHIP", "") or "").strip()
-                state = (
-                    row.get(
-                        "RELATEDPERSONSTATE",
-                        row.get("RELATEDPERSONSTATEORCOUNTRY", ""),
-                    )
-                    or ""
-                ).strip()
-                accession = (row.get("ACCESSIONNUMBER", "") or "").strip()
+                # 3 relationship columns; collect each
+                role_parts = [
+                    (row.get(f"RELATIONSHIP_{i}") or "").strip() for i in (1, 2, 3)
+                ]
+                roles = [r for r in role_parts if r]
+                state = (row.get("STATEORCOUNTRY") or "").strip()
+                accession = (row.get("ACCESSIONNUMBER") or "").strip()
 
                 promoters[name]["count"] += 1
-                if role:
+                for role in roles:
                     promoters[name]["roles"].add(role)
                 if state:
                     promoters[name]["states"].add(state)
