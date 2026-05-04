@@ -64,9 +64,6 @@ class Investor(Base, UUIDMixin, TimestampMixin):
     )
     aliases: Mapped[list["InvestorAlias"]] = relationship(back_populates="investor")
     funds: Mapped[list["Fund"]] = relationship(back_populates="investor")  # noqa: F821
-    partners: Mapped[list["InvestorPartner"]] = relationship(  # noqa: F821
-        back_populates="investor", cascade="all, delete-orphan"
-    )
 
 
 class InvestorAlias(Base, TimestampMixin):
