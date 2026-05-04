@@ -6,8 +6,8 @@ Runs collectors and enrichers at different frequencies:
 - Daily: GitHub, npm/PyPI, Product Hunt, YC directory, Form D promoters,
          DefiLlama, CoinGecko chain, Snapshot, Etherscan
 - Weekly: Accelerator scrapes, SEC investor intelligence, 990s,
-          SEC EDGAR bulk, OpenVC, Wellfound, AngelList investors, Crunchbase,
-          Angel groups, VC website scraping, PitchBook News
+          SEC EDGAR bulk, Wellfound, AngelList investors, Crunchbase,
+          Angel groups, VC website scraping
 """
 
 import asyncio
@@ -38,7 +38,6 @@ from src.collectors.investor_profile_aggregator import InvestorProfileAggregator
 from src.collectors.nih_reporter import NIHReporterCollector
 from src.collectors.npm_enricher import NpmEnricher
 from src.collectors.nsf_awards import NSFAwardsCollector
-from src.collectors.openvc import OpenVCCollector
 from src.collectors.preseed_fund_directory import PreSeedFundDirectory
 from src.collectors.producthunt_enricher import ProductHuntEnricher
 from src.collectors.propublica_990 import ProPublica990Enricher
@@ -191,7 +190,6 @@ async def weekly_tick() -> None:
     """Run once per week: accelerators, SEC intelligence."""
     await run_collector_job("500_global", FiveHundredGlobalCollector)
     await run_collector_job("techstars", TechstarsCollector)
-    await run_collector_job("openvc", OpenVCCollector)
     await run_enricher_job("sec_form_adv", SECFormADVEnricher)
     await run_enricher_job("sec_13f", SEC13FEnricher)
     await run_enricher_job("propublica_990", ProPublica990Enricher)

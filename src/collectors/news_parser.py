@@ -1,6 +1,6 @@
 """Shared parsing utilities for news-based funding extraction.
 
-Used by rss_funding.py, google_news.py, and pitchbook_news.py.
+Used by rss_funding.py and google_news.py.
 """
 
 import re
@@ -235,8 +235,13 @@ def is_valid_investor_name(name: str) -> bool:
     if _HTML_ENTITY_PATTERN.search(name):
         return False
 
-    # Must start with uppercase letter or digit (e.g. "8VC", "a16z")
-    if not name[0].isupper() and not name[0].isdigit():
+    # Must start with uppercase letter or digit (e.g. "Sequoia", "8VC") OR be a
+    # stylized lowercase fund name with embedded digits (e.g. "a16z", "p9", "e2e").
+    # Bug history: previous check rejected lowercase-prefixed names entirely,
+    # silently dropping a16z from every extracted round it appeared in.
+    starts_ok = name[0].isupper() or name[0].isdigit()
+    is_stylized = bool(re.match(r"^[a-z]\d+[a-z\d]*$", name))
+    if not starts_ok and not is_stylized:
         return False
 
     # Reject "N/A" prefixed names (SEC Form D artifact)

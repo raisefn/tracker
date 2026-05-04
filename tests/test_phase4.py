@@ -234,72 +234,6 @@ def test_google_news_search_queries():
     assert any("raises" in q for q in SEARCH_QUERIES)
 
 
-# --- PitchBook News collector ---
-
-
-def test_pitchbook_parse_article():
-    from src.collectors.pitchbook_news import PitchBookNewsCollector
-
-    collector = PitchBookNewsCollector()
-    result = collector._parse_article(
-        title="HealthCo secures $75M Series C",
-        description="HealthCo announced a $75M Series C round led by Flagship.",
-        link="https://pitchbook.com/news/healthco",
-        pub_date="Wed, 05 Feb 2025 10:00:00 GMT",
-    )
-    assert result is not None
-    assert result.project_name == "HealthCo"
-    assert result.amount_usd == 75_000_000
-    assert result.round_type == "series_c"
-
-
-# --- OpenVC collector ---
-
-
-def test_openvc_parse_round():
-    from src.collectors.openvc import OpenVCCollector
-
-    collector = OpenVCCollector()
-    result = collector._parse_round({
-        "company_name": "TestCo",
-        "amount": 5000000,
-        "round_type": "Series A",
-        "date": "2024-06-15",
-        "investors": [
-            {"name": "VC Fund", "is_lead": True},
-            {"name": "Angel Group", "is_lead": False},
-        ],
-        "website": "https://testco.com",
-        "id": "abc123",
-    })
-    assert result is not None
-    assert result.project_name == "TestCo"
-    assert result.amount_usd == 5_000_000
-    assert result.round_type == "series_a"
-    assert "VC Fund" in result.lead_investors
-    assert "Angel Group" in result.other_investors
-
-
-def test_openvc_parse_round_no_name():
-    from src.collectors.openvc import OpenVCCollector
-
-    collector = OpenVCCollector()
-    result = collector._parse_round({"amount": 1000000})
-    assert result is None
-
-
-def test_openvc_parse_round_string_investors():
-    from src.collectors.openvc import OpenVCCollector
-
-    collector = OpenVCCollector()
-    result = collector._parse_round({
-        "company_name": "Foo",
-        "investors": ["Investor A", "Investor B"],
-    })
-    assert result is not None
-    assert "Investor A" in result.other_investors
-
-
 # --- Wellfound enricher ---
 
 
@@ -347,28 +281,35 @@ def test_wellfound_extract_data_no_update():
 # --- Backfill EDGAR script ---
 
 
-def test_backfill_get_quarters():
-    from scripts.backfill_edgar import get_quarters
+def test_backfill_get_months_single_year():
+    from datetime import date
 
-    quarters = get_quarters(2024, 2024)
-    assert len(quarters) >= 1
-    assert all(y == 2024 for y, q in quarters)
-    assert all(1 <= q <= 4 for y, q in quarters)
+    from scripts.backfill_edgar import get_months
 
-
-def test_backfill_get_quarters_range():
-    from scripts.backfill_edgar import get_quarters
-
-    quarters = get_quarters(2023, 2024)
-    assert len(quarters) >= 5  # At least 4 from 2023 + 1 from 2024
-    assert quarters[0] == (2023, 1)
+    months = get_months(2024, 2024)
+    assert len(months) >= 1
+    assert all(start.year == 2024 for start, _ in months)
+    assert all(start <= end for start, end in months)
+    # Each tuple is (first-of-month-or-today, last-day-of-month-or-today)
+    assert months[0][0] == date(2024, 1, 1)
 
 
-def test_backfill_get_quarters_skips_future():
-    from scripts.backfill_edgar import get_quarters
+def test_backfill_get_months_range():
+    from datetime import date
 
-    quarters = get_quarters(2030, 2030)
-    assert len(quarters) == 0
+    from scripts.backfill_edgar import get_months
+
+    months = get_months(2023, 2024)
+    # At least 12 months from 2023 + 1 from 2024
+    assert len(months) >= 13
+    assert months[0][0] == date(2023, 1, 1)
+
+
+def test_backfill_get_months_skips_future():
+    from scripts.backfill_edgar import get_months
+
+    months = get_months(2030, 2030)
+    assert len(months) == 0
 
 
 # --- Scheduler wiring ---
@@ -387,8 +328,6 @@ def test_scheduler_imports_all_sources():
     # Check new Phase 4 sources are wired in
     source = __import__("inspect").getsource(sched)
     assert "GoogleNewsFundingCollector" in source
-    assert "OpenVCCollector" in source
-    assert "PitchBookNewsCollector" in source
     assert "WellfoundEnricher" in source
     assert "CoinGeckoEnricher" in source
     assert "CoinGeckoCommunityEnricher" in source
@@ -399,12 +338,10 @@ def test_scheduler_imports_all_sources():
 
 
 def test_run_collectors_includes_new():
-    """Verify run_collectors.py has new Phase 4 collectors."""
+    """Verify run_collectors.py has Phase 4 collectors that are still active."""
     from scripts.run_collectors import COLLECTORS
 
     assert "google_news" in COLLECTORS
-    assert "openvc" in COLLECTORS
-    assert "pitchbook_news" in COLLECTORS
 
 
 def test_run_enrichers_includes_wellfound():
