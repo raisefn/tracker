@@ -218,9 +218,7 @@ class FormDPromoterEnricher(BaseEnricher):
 
                 name = f"{first} {last}".strip() if first else last
                 # 3 relationship columns; collect each
-                role_parts = [
-                    (row.get(f"RELATIONSHIP_{i}") or "").strip() for i in (1, 2, 3)
-                ]
+                role_parts = [(row.get(f"RELATIONSHIP_{i}") or "").strip() for i in (1, 2, 3)]
                 roles = [r for r in role_parts if r]
                 state = (row.get("STATEORCOUNTRY") or "").strip()
                 accession = (row.get("ACCESSIONNUMBER") or "").strip()

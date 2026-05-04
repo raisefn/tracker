@@ -1,0 +1,9 @@
+# Code ownership for raisefn/tracker
+#
+# Every PR requires review by someone listed below. Adding more
+# collaborators in the future? Add path-specific rules above the
+# global rule (more specific lines override less specific).
+#
+# Docs: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+* @justinpetsche
