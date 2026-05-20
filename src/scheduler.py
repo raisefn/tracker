@@ -213,29 +213,26 @@ async def weekly_tick() -> None:
 
 
 async def scheduler_loop() -> None:
-    """Main scheduler loop. Runs indefinitely."""
-    logger.info("[scheduler] Starting scheduler loop")
+    """Main scheduler loop. Runs indefinitely.
 
-    # Run daily + weekly enrichers on startup so deploys don't wait 24h
-    logger.info("[scheduler] Running daily tick on startup")
-    try:
-        await daily_tick()
-    except Exception as e:
-        logger.error(f"[scheduler] startup daily_tick error: {e}")
+    Startup behavior: jumps straight into the periodic loop. realtime_tick
+    runs in the first iteration so freshly-deployed containers don't sit
+    idle.
 
-    # Run angel discovery first — these are the priority overnight jobs
-    logger.info("[scheduler] Running angel discovery on startup")
-    try:
-        await run_enricher_job_long("linkedin_angel_discovery", LinkedInAngelDiscovery)
-        await run_enricher_job_long("published_list_discovery", PublishedListAngelDiscovery)
-    except Exception as e:
-        logger.error(f"[scheduler] startup angel discovery error: {e}")
+    Pre-fix the loop ran daily_tick + LinkedIn/published-list angel discovery
+    + weekly_tick on startup "so deploys don't wait 24h". As data grew
+    (17K investors / 34K projects / 210K rounds), that startup workload
+    started OOM-killing the container on Railway. When restart-on-failure
+    kicked in, the storm repeated 3x and Railway gave up — surfacing as
+    the "Deploy Crashed" email 2026-05-20.
 
-    logger.info("[scheduler] Running weekly tick on startup")
-    try:
-        await weekly_tick()
-    except Exception as e:
-        logger.error(f"[scheduler] startup weekly_tick error: {e}")
+    Tradeoff after this change: after a restart, daily jobs wait up to
+    24h for first run and weekly jobs wait up to 7d. Acceptable because
+    most daily/weekly data already ran on a prior process lifetime, and
+    restarts are infrequent. If they stop being infrequent, the right
+    fix is splitting the scheduler into its own Railway service.
+    """
+    logger.info("[scheduler] Starting scheduler loop (no startup storm)")
 
     tick_count = 0
 
